@@ -1,5 +1,5 @@
 name: incidentiq
-version: "1.0.0"
+version: "1.1.0"
 description: >
   Production incident response environment. An AI agent acts as an
   on-call SRE, diagnosing and remediating software failures across

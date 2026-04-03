@@ -48,7 +48,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="IncidentIQ",
     description="Production incident response RL environment",
-    version="1.0.0",
+    version="1.1.0",
     lifespan=lifespan,
 )
 
@@ -65,7 +65,7 @@ app.add_middleware(
 
 @app.get("/health")
 async def health() -> dict:
-    return {"status": "healthy", "version": "1.0.0"}
+    return {"status": "healthy", "version": "1.1.0"}
 
 
 @app.get("/metadata")
@@ -77,7 +77,7 @@ async def metadata() -> dict:
             "on-call SRE, diagnosing and remediating software failures across "
             "a simulated microservice architecture."
         ),
-        "version": "1.0.0",
+        "version": "1.1.0",
         "domain": "sre",
         "author": "Zewx77",
     }
@@ -162,7 +162,7 @@ async def mcp_endpoint(body: dict = {}) -> JSONResponse:
         "id": body.get("id", 1),
         "result": {
             "name": "incidentiq",
-            "version": "1.0.0",
+            "version": "1.1.0",
         },
     })
 

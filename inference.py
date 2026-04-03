@@ -9,7 +9,11 @@ import time
 from typing import Any, Dict, List, Optional
 
 import httpx
+from dotenv import load_dotenv
 from huggingface_hub import InferenceClient
+
+# Load .env file (contains HF_TOKEN, etc.)
+load_dotenv()
 
 
 # ── Configuration ───────────────────────────────────────────────────────────
