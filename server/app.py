@@ -17,7 +17,7 @@ from env.models import Action, ResetResult, StepResult
 # ── Request / response bodies ───────────────────────────────────────────────
 
 class ResetRequest(BaseModel):
-    task_id: str = Field(..., description="Task identifier to start")
+    task_id: Optional[str] = Field(None, description="Task identifier to start (defaults to first task)")
     seed: Optional[int] = Field(None, description="Random seed for determinism")
 
 
@@ -69,8 +69,16 @@ async def health() -> dict:
 
 @app.post("/reset")
 async def reset(body: ResetRequest) -> dict:
+    # Default to first available task if none specified
+    task_id = body.task_id
+    if not task_id:
+        available = env.get_tasks()
+        if not available:
+            raise HTTPException(status_code=500, detail="No tasks available")
+        task_id = available[0]["task_id"]
+
     try:
-        session_id, result = env.reset(body.task_id, body.seed)
+        session_id, result = env.reset(task_id, body.seed)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
 
