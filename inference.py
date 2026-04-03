@@ -1,0 +1,306 @@
+"""IncidentIQ inference script — runs an LLM agent against all 3 tasks."""
+
+from __future__ import annotations
+
+import json
+import os
+import sys
+import time
+from typing import Any, Dict, List, Optional
+
+import httpx
+from huggingface_hub import InferenceClient
+
+
+# ── Configuration ───────────────────────────────────────────────────────────
+
+API_BASE_URL = os.environ.get("API_BASE_URL", "https://api-inference.huggingface.co/v1")
+MODEL_NAME = os.environ.get("MODEL_NAME", "Qwen/Qwen2.5-72B-Instruct")
+API_KEY = os.environ.get("HF_TOKEN", "")
+ENV_URL = os.environ.get("ENV_URL", "http://localhost:7860")
+
+MAX_STEPS = 20
+SUCCESS_SCORE_THRESHOLD = 0.6
+
+# Per-task reward ceilings: realistic max step rewards + terminal max (0.60)
+MAX_TOTAL_REWARD = {
+    "task1_cpu_saturation": 0.85,
+    "task2_cascading_failure": 0.85,
+    "task3_silent_corruption": 0.90,
+    "task4_db_connection_limit": 0.85,
+    "task5_memory_leak_analytics": 0.85,
+}
+TASKS = [
+    "task1_cpu_saturation",
+    "task2_cascading_failure",
+    "task3_silent_corruption",
+    "task4_db_connection_limit",
+    "task5_memory_leak_analytics",
+]
+
+SYSTEM_PROMPT = """You are an expert SRE (Site Reliability Engineer) responding to a production incident.
+You receive observations with alerts, service health, metrics, logs, deployments, and configs.
+You must investigate systematically, identify the root cause, and resolve the incident.
+
+═══ RESPONSE FORMAT (MANDATORY) ═══
+Respond with ONLY a valid JSON object. No prose, no markdown, no explanation.
+{"action": "<action_type>", "params": {<action-specific params>}}
+
+═══ AVAILABLE ACTIONS ═══
+• query_logs: {"service": "<name>", "pattern": "<search_term>"}
+• query_metrics: {"service": "<name>", "metric": "<cpu_pct|p99_latency_ms|error_rate|active_connections>", "window_minutes": <int>}
+• query_traces: {"service": "<name>"}
+• check_deployment: {"service": "<name>"}
+• check_config: {"service": "<name>", "key": "<config_key>"}
+• hypothesize: {"root_cause_service": "<name>", "mechanism": "<description>", "confidence": <0.0-1.0>}
+• remediate: {"type": "rollback|restart|config_patch", "target": "<service>", "details": "<description>"}
+• close_incident: {"root_cause_service": "<name>", "mechanism": "<description>", "remediation_taken": "rollback|restart|config_patch", "blast_radius": ["<svc1>", ...], "summary": "<text>"}
+
+═══ SERVICES ═══
+api-gateway, order-service, auth-service, postgres, analytics-service
+
+═══ INVESTIGATION PLAYBOOK ═══
+1. READ the alert carefully. Note WHICH services are mentioned and HOW.
+2. Query logs/metrics of the MOST DEGRADED service first (highest error rate, highest latency).
+3. Check deployments and configs of suspected services — config changes are often root causes.
+4. ALWAYS call check_config on any service you suspect before closing.
+5. Form a hypothesis BEFORE closing — this validates your reasoning.
+6. Close the incident with specific mechanism details.
+
+═══ CRITICAL RULES ═══
+• Do NOT repeat the same action with the same params — you get penalized.
+• Do NOT investigate a service just because it "looks busy" — check if its metrics are ACTUALLY degraded.
+• ALWAYS check_config on the root cause service — config changes cause many incidents.
+• When closing: blast_radius = ONLY services genuinely affected, NOT healthy ones.
+• Choose remediation carefully: rollback (undo deploy), restart (clear state), config_patch (fix config).
+• If the alert mentions "no outage" or metrics look normal, think about SILENT issues (data corruption, config drift).
+"""
+
+
+# ── Logging functions (exact spec format) ───────────────────────────────────
+
+def log_start(task: str, env: str, model: str) -> None:
+    print(
+        json.dumps({"type": "[START]", "task": task, "env": env, "model": model}),
+        flush=True,
+    )
+
+
+def log_step(step: int, action: str, reward: float, done: bool, error: Optional[str] = None) -> None:
+    print(
+        json.dumps({
+            "type": "[STEP]",
+            "step": step,
+            "action": action,
+            "reward": round(reward, 4),
+            "done": done,
+            "error": error,
+        }),
+        flush=True,
+    )
+
+
+def log_end(success: bool, steps: int, score: float, rewards: List[float]) -> None:
+    print(
+        json.dumps({
+            "type": "[END]",
+            "success": success,
+            "steps": steps,
+            "score": round(score, 4),
+            "total_reward": round(sum(rewards), 4),
+            "rewards": [round(r, 4) for r in rewards],
+        }),
+        flush=True,
+    )
+
+
+# ── Observation formatter ───────────────────────────────────────────────────
+
+def format_observation(obs: dict) -> str:
+    """Format a raw observation dict into a readable text string for the LLM."""
+    lines: List[str] = []
+    lines.append(f"=== ALERT ===\n{obs.get('alert_summary', 'N/A')}\n")
+
+    lines.append("=== SERVICE HEALTH ===")
+    for name, health in obs.get("service_health", {}).items():
+        h = health if isinstance(health, dict) else health
+        lines.append(
+            f"  {name}: status={h.get('status','?')} cpu={h.get('cpu_pct',0):.1f}% "
+            f"mem={h.get('mem_pct',0):.1f}% p50={h.get('p50_ms',0):.1f}ms "
+            f"p99={h.get('p99_ms',0):.1f}ms err_rate={h.get('error_rate',0):.4f} "
+            f"conns={h.get('active_connections',0)}"
+        )
+    lines.append("")
+
+    lines.append("=== RECENT LOGS (last 10) ===")
+    for log in obs.get("recent_logs", [])[:10]:
+        l = log if isinstance(log, dict) else log
+        lines.append(f"  [{l.get('level','?')}] {l.get('service','?')}: {l.get('message','')}")
+    lines.append("")
+
+    lines.append("=== DEPENDENCY GRAPH ===")
+    for svc, deps in obs.get("dependency_graph", {}).items():
+        lines.append(f"  {svc} -> {deps}")
+    lines.append("")
+
+    lines.append("=== RECENT DEPLOYMENTS ===")
+    for dep in obs.get("recent_deployments", []):
+        d = dep if isinstance(dep, dict) else dep
+        lines.append(
+            f"  {d.get('service','?')} {d.get('version','?')} "
+            f"at {d.get('deployed_at','?')} by {d.get('deployed_by','?')}: "
+            f"{d.get('change_summary','?')}"
+        )
+    lines.append("")
+
+    lines.append(f"Step: {obs.get('step_number', '?')} | Steps remaining: {obs.get('steps_remaining', '?')}")
+    if obs.get("last_action_result"):
+        result_text = obs["last_action_result"]
+        if len(result_text) > 1500:
+            result_text = result_text[:1500] + "\n... (truncated)"
+        lines.append(f"\n=== LAST ACTION RESULT ===\n{result_text}")
+
+    return "\n".join(lines)
+
+
+# ── LLM agent ──────────────────────────────────────────────────────────────
+
+def get_agent_action(
+    client: InferenceClient,
+    observation_text: str,
+    history: List[dict],
+    last_reward: float,
+    step: int,
+) -> str:
+    """Call the LLM and return its raw text response."""
+    messages: List[dict] = [{"role": "system", "content": SYSTEM_PROMPT}]
+
+    # Include last 6 turns for context
+    for h in history[-6:]:
+        messages.append({"role": "user", "content": h["obs"]})
+        messages.append({"role": "assistant", "content": h["action"]})
+
+    messages.append({
+        "role": "user",
+        "content": f"Step {step}. Last reward: {last_reward:.3f}\n\nCurrent observation:\n{observation_text}",
+    })
+
+    try:
+        resp = client.chat_completion(
+            model=MODEL_NAME,
+            messages=messages,
+            max_tokens=300,
+            temperature=0.01,
+        )
+        return resp.choices[0].message.content.strip()
+    except Exception as e:
+        print(f"[DEBUG] LLM call failed: {e}", flush=True)
+        return json.dumps({
+            "action": "query_logs",
+            "params": {"service": "api-gateway", "pattern": "error"},
+        })
+
+
+def parse_action(raw: str) -> dict:
+    """Parse the LLM response into an action dict, with fallback."""
+    # Strip markdown code fences if present
+    text = raw.strip()
+    if text.startswith("```"):
+        lines = text.split("\n")
+        lines = [l for l in lines if not l.strip().startswith("```")]
+        text = "\n".join(lines).strip()
+
+    try:
+        parsed = json.loads(text)
+        if "action" in parsed and "params" in parsed:
+            return parsed
+    except json.JSONDecodeError:
+        pass
+
+    # Fallback
+    return {
+        "action": "query_logs",
+        "params": {"service": "api-gateway", "pattern": "error"},
+    }
+
+
+# ── Main loop ──────────────────────────────────────────────────────────────
+
+def main() -> None:
+    client = InferenceClient(api_key=API_KEY)
+    http = httpx.Client(base_url=ENV_URL, timeout=30.0)
+
+    for task_idx, task_id in enumerate(TASKS):
+        if task_idx > 0:
+            print("\n" + "=" * 60 + "\n", flush=True)
+
+        # 1. Reset
+        reset_resp = http.post("/reset", json={"task_id": task_id})
+        reset_resp.raise_for_status()
+        reset_data = reset_resp.json()
+
+        session_id = reset_data["session_id"]
+        observation = reset_data["observation"]
+
+        # 2. Log start
+        log_start(task=task_id, env="incidentiq", model=MODEL_NAME)
+
+        history: List[dict] = []
+        rewards: List[float] = []
+        done = False
+        last_reward = 0.0
+        steps_taken = 0
+
+        # 3. Step loop
+        for step_num in range(1, MAX_STEPS + 1):
+            if done:
+                break
+
+            obs_text = format_observation(observation)
+            raw_action = get_agent_action(client, obs_text, history, last_reward, step_num)
+            action_dict = parse_action(raw_action)
+            action_str = json.dumps(action_dict)
+
+            # POST step
+            try:
+                step_resp = http.post(
+                    "/step",
+                    json={"session_id": session_id, "action": action_dict},
+                )
+                step_resp.raise_for_status()
+                step_data = step_resp.json()
+            except Exception as e:
+                log_step(step_num, action_str, 0.0, False, error=str(e))
+                rewards.append(0.0)
+                steps_taken = step_num
+                continue
+
+            reward_val = step_data.get("reward", {}).get("value", 0.0)
+            done = step_data.get("done", False)
+
+            log_step(step_num, action_str, reward_val, done)
+
+            rewards.append(reward_val)
+            last_reward = reward_val
+            steps_taken = step_num
+
+            # Update observation for next turn
+            observation = step_data.get("observation", observation)
+
+            # Append to history
+            history.append({"obs": obs_text, "action": raw_action})
+
+            if done:
+                break
+
+        # 4–6. Score and log end
+        total_reward = sum(rewards)
+        ceiling = MAX_TOTAL_REWARD.get(task_id, 0.85)
+        score = min(max(total_reward / ceiling, 0.0), 1.0)
+        success = score >= SUCCESS_SCORE_THRESHOLD
+
+        log_end(success, steps_taken, score, rewards)
+
+
+if __name__ == "__main__":
+    main()

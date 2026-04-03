@@ -1,0 +1,50 @@
+name: incidentiq
+version: "1.0.0"
+description: >
+  Production incident response environment. An AI agent acts as an
+  on-call SRE, diagnosing and remediating software failures across
+  a simulated microservice architecture.
+domain: sre
+tags: [openenv, sre, devops, incident-response, observability]
+author: Zewx77
+tasks:
+  - id: task1_cpu_saturation
+    name: Single service CPU saturation
+    difficulty: easy
+    max_steps: 15
+    description: >
+      The order-service is experiencing CPU saturation due to a missing
+      database index. Identify the root cause and correct remediation.
+  - id: task2_cascading_failure
+    name: Cascading failure across services
+    difficulty: medium
+    max_steps: 20
+    description: >
+      Auth-service Redis pool exhaustion cascades to API gateway 503s.
+      A red herring (analytics memory leak) is also present.
+  - id: task3_silent_corruption
+    name: Silent data corruption
+    difficulty: hard
+    max_steps: 30
+    description: >
+      A payment race condition causes 3% double-charges with no outage.
+      Root cause is a config change 6 days ago, not a recent deployment.
+  - id: task4_db_connection_limit
+    name: Database connection pool saturation
+    difficulty: medium
+    max_steps: 20
+    description: >
+      Postgres max_connections was reduced by a config change 2 days ago.
+      Connection pool is saturated, cascading to order-service and API gateway.
+  - id: task5_memory_leak_analytics
+    name: Analytics pipeline memory leak
+    difficulty: medium-hard
+    max_steps: 25
+    description: >
+      Analytics-service has a genuine memory leak — unlike other tasks where
+      it is a red herring. Tests whether the agent adapts vs blindly ignores.
+api:
+  base_url: https://Zewx77-incidentiq.hf.space
+  reset_endpoint: /reset
+  step_endpoint: /step
+  state_endpoint: /state
