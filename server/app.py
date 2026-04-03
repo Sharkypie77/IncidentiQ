@@ -63,6 +63,16 @@ app.add_middleware(
 
 # ── Routes ──────────────────────────────────────────────────────────────────
 
+@app.get("/")
+async def root() -> dict:
+    return {
+        "name": "IncidentIQ",
+        "version": "1.1.0",
+        "description": "Production incident response RL environment",
+        "docs": "/docs",
+        "endpoints": ["/health", "/metadata", "/schema", "/reset", "/step", "/state", "/tasks", "/mcp"],
+    }
+
 @app.get("/health")
 async def health() -> dict:
     return {"status": "healthy", "version": "1.1.0"}
