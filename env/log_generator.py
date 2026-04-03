@@ -143,8 +143,17 @@ def _order_service_logs(
                 message=f"transaction {tx_id} processed",
             ))
             logs.append(LogLine(
-                timestamp=_iso(t2), service="order-service", level="INFO",
-                message=f"transaction {tx_id} processed",
+                timestamp=_iso(t2), service="order-service", level="WARN",
+                message=f"duplicate transaction detected: {tx_id} already processed 200ms ago — idempotency key missing",
+            ))
+
+        # Inject connection pool exhaustion logs for Task 4 (postgres root cause)
+        if is_root and gt.failure_type == "connection_exhaustion" and i < 3:
+            symptom_ts = _iso(base_time - timedelta(seconds=rng.randint(0, 300)))
+            wait = rng.randint(2000, 8000)
+            logs.append(LogLine(
+                timestamp=symptom_ts, service="order-service", level="ERROR",
+                message=f"database connection pool exhausted: waited {wait}ms — all connections to postgres in use",
             ))
 
     return logs
@@ -227,6 +236,8 @@ def _postgres_logs(
         "SELECT COUNT(*) FROM sessions WHERE expired_at < NOW()",
     ]
 
+    is_root = gt.root_cause_service == "postgres"
+
     for i in range(n):
         ts = _iso(base_time - timedelta(seconds=rng.randint(0, 1800)))
         roll = rng.random()
@@ -260,6 +271,20 @@ def _postgres_logs(
                 message=f"query OK table={table} rows={rows} duration={ms}ms",
             ))
 
+        # Inject root-cause symptom logs for connection_exhaustion (Task 4)
+        if is_root and gt.failure_type == "connection_exhaustion" and i < 3:
+            symptom_ts = _iso(base_time - timedelta(seconds=rng.randint(0, 300)))
+            curr = rng.randint(18, 20)
+            logs.append(LogLine(
+                timestamp=symptom_ts, service="postgres", level="ERROR",
+                message=f"FATAL: too many clients already current={curr} max_connections=20 — connection rejected",
+            ))
+            logs.append(LogLine(
+                timestamp=_iso(base_time - timedelta(seconds=rng.randint(300, 900))),
+                service="postgres", level="WARN",
+                message=f"connection pool near capacity: {curr}/20 active connections (max_connections was reduced from 100 to 20)",
+            ))
+
     return logs
 
 
@@ -270,9 +295,10 @@ def _analytics_service_logs(
     base_time: datetime,
     n: int,
 ) -> List[LogLine]:
-    """Always slightly degraded — serves as a red herring."""
+    """Slightly degraded logs — red herring in most tasks, but real root cause in Task 5."""
     logs: List[LogLine] = []
     is_red_herring = "analytics-service" in gt.red_herring_services
+    is_root = gt.root_cause_service == "analytics-service"
 
     for i in range(n):
         # Red herring logs are timestamped 3-6 hours before the incident
@@ -303,6 +329,22 @@ def _analytics_service_logs(
                 timestamp=ts, service="analytics-service", level="INFO",
                 message=f"batch job completed rows={rows} duration={sec}s",
             ))
+
+        # Inject root-cause symptom logs for memory_leak (Task 5)
+        if is_root and gt.failure_type == "memory_leak" and i < 4:
+            symptom_ts = _iso(base_time - timedelta(seconds=rng.randint(0, 300)))
+            mb = rng.randint(3200, 3900)
+            cache_entries = rng.randint(500000, 2000000)
+            logs.append(LogLine(
+                timestamp=symptom_ts, service="analytics-service", level="ERROR",
+                message=f"OOM warning: heap_used={mb}MB limit=4096MB batch_cache_entries={cache_entries} — cache growing unbounded (batch_cache_ttl=0)",
+            ))
+            if i < 2:
+                logs.append(LogLine(
+                    timestamp=_iso(base_time - timedelta(seconds=rng.randint(300, 1200))),
+                    service="analytics-service", level="ERROR",
+                    message=f"container killed by OOM killer: memory={mb}MB exceeds limit — batch cache not evicting (ttl=0)",
+                ))
 
     return logs
 

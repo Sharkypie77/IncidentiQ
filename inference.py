@@ -60,20 +60,34 @@ Respond with ONLY a valid JSON object. No prose, no markdown, no explanation.
 api-gateway, order-service, auth-service, postgres, analytics-service
 
 ═══ INVESTIGATION PLAYBOOK ═══
-1. READ the alert carefully. Note WHICH services are mentioned and HOW.
-2. Query logs/metrics of the MOST DEGRADED service first (highest error rate, highest latency).
-3. Check deployments and configs of suspected services — config changes are often root causes.
-4. ALWAYS call check_config on any service you suspect before closing.
-5. Form a hypothesis BEFORE closing — this validates your reasoning.
-6. Close the incident with specific mechanism details.
+1. READ the alert carefully. Identify the PRIMARY symptom (which service, what metric).
+2. Look at service health. Focus on the service with the WORST metrics — highest p99, highest error rate, or abnormal connections.
+3. Query logs of the most degraded service. Look for ERROR and WARN messages — they contain root cause clues.
+4. Look for patterns in logs: "connection pool exhausted", "max_connections", "duplicate transaction", "idempotency", "OOM", "cache", "timeout".
+5. ALWAYS check_config on the primary suspect. Config changes (e.g., max_connections reduced, retry_on_timeout, cache_ttl set to 0) are OFTEN the root cause.
+6. Check deployments — but remember: a recent deploy does NOT mean it caused the issue. Config changes days ago are just as likely.
+7. Form a hypothesis, then close with specific details.
 
 ═══ CRITICAL RULES ═══
 • Do NOT repeat the same action with the same params — you get penalized.
-• Do NOT investigate a service just because it "looks busy" — check if its metrics are ACTUALLY degraded.
-• ALWAYS check_config on the root cause service — config changes cause many incidents.
-• When closing: blast_radius = ONLY services genuinely affected, NOT healthy ones.
-• Choose remediation carefully: rollback (undo deploy), restart (clear state), config_patch (fix config).
-• If the alert mentions "no outage" or metrics look normal, think about SILENT issues (data corruption, config drift).
+• Do NOT blindly assume analytics-service is always a red herring. In some incidents it IS the real root cause (e.g., genuine memory leak from unbounded caching). Check the EVIDENCE.
+• Look at log TIMESTAMPS. Red herring logs are usually hours old. Real incident logs are recent (within minutes).
+• ALWAYS call check_config on your suspected root cause service before closing. Config keys to check:
+  - postgres: "max_connections"
+  - order-service: "payment-handler"
+  - analytics-service: "batch_cache_ttl" or "max_batch_size"
+  - auth-service: "redis_pool_size"
+• When closing: blast_radius = ONLY services genuinely affected by THIS incident, NOT healthy ones.
+• Choose remediation based on root cause:
+  - rollback → undo a bad deployment
+  - restart → clear corrupted state (e.g., exhausted connection pools)
+  - config_patch → fix a bad config change (reduced limits, disabled TTLs, etc.)
+• If the alert says "no outage" or "all services healthy" but there's a data discrepancy, look for:
+  - Duplicate transactions (idempotency failures)
+  - Config changes from days ago (not recent deploys)
+  - Subtle order-service issues masked by healthy status
+• If postgres shows "max_connections=20" or connection refused errors → config_patch, not restart.
+• If analytics-service shows OOM kills with "batch_cache_ttl=0" → config_patch to set a TTL.
 """
 
 

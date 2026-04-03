@@ -5,13 +5,14 @@ from __future__ import annotations
 import sys
 from contextlib import asynccontextmanager
 from typing import Any, Dict, List, Optional
+from starlette.responses import JSONResponse
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from env.environment import IncidentIQEnv
-from env.models import Action, ResetResult, StepResult
+from env.models import Action, Observation, ResetResult, StepResult
 
 
 # ── Request / response bodies ───────────────────────────────────────────────
@@ -64,7 +65,41 @@ app.add_middleware(
 
 @app.get("/health")
 async def health() -> dict:
-    return {"status": "ok", "version": "1.0.0"}
+    return {"status": "healthy", "version": "1.0.0"}
+
+
+@app.get("/metadata")
+async def metadata() -> dict:
+    return {
+        "name": "incidentiq",
+        "description": (
+            "Production incident response environment. An AI agent acts as an "
+            "on-call SRE, diagnosing and remediating software failures across "
+            "a simulated microservice architecture."
+        ),
+        "version": "1.0.0",
+        "domain": "sre",
+        "author": "Zewx77",
+    }
+
+
+@app.get("/schema")
+async def schema() -> dict:
+    return {
+        "action": Action.model_json_schema(),
+        "observation": Observation.model_json_schema(),
+        "state": {
+            "type": "object",
+            "properties": {
+                "task_id": {"type": "string"},
+                "step_count": {"type": "integer"},
+                "max_steps": {"type": "integer"},
+                "done": {"type": "boolean"},
+                "service_states": {"type": "object"},
+                "cumulative_reward": {"type": "number"},
+            },
+        },
+    }
 
 
 @app.post("/reset")
@@ -102,6 +137,15 @@ async def step(body: StepRequest) -> dict:
     return result.model_dump()
 
 
+@app.get("/state")
+async def state_root() -> dict:
+    """Return state for the most recent session (OpenEnv runtime contract)."""
+    if env._sessions:
+        session_id = list(env._sessions.keys())[-1]
+        return env.get_state(session_id)
+    return {"task_id": "", "step_count": 0, "max_steps": 0, "done": False, "service_states": {}, "cumulative_reward": 0.0}
+
+
 @app.get("/state/{session_id}")
 async def state(session_id: str) -> dict:
     try:
@@ -110,6 +154,29 @@ async def state(session_id: str) -> dict:
         raise HTTPException(status_code=404, detail=str(exc))
 
 
+@app.post("/mcp")
+async def mcp_endpoint(body: dict = {}) -> JSONResponse:
+    """MCP JSON-RPC 2.0 endpoint (minimal implementation)."""
+    return JSONResponse(content={
+        "jsonrpc": "2.0",
+        "id": body.get("id", 1),
+        "result": {
+            "name": "incidentiq",
+            "version": "1.0.0",
+        },
+    })
+
+
 @app.get("/tasks")
 async def tasks() -> List[dict]:
     return env.get_tasks()
+
+
+def main(host: str = "0.0.0.0", port: int = 7860):
+    """Entry point for direct execution via uv run or python -m."""
+    import uvicorn
+    uvicorn.run(app, host=host, port=port)
+
+
+if __name__ == "__main__":
+    main()
