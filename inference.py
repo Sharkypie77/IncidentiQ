@@ -18,10 +18,10 @@ load_dotenv()
 
 # ── Configuration ───────────────────────────────────────────────────────────
 
-API_BASE_URL = os.environ.get("API_BASE_URL", "https://openrouter.ai/api/v1")
-MODEL_NAME = os.environ.get("MODEL_NAME", "meta-llama/llama-3.3-70b-instruct:free")
-API_KEY = os.environ.get("API_KEY", "")
-ENV_URL = os.environ.get("ENV_URL", "http://localhost:7860")
+API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
+MODEL_NAME = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-72B-Instruct")
+HF_TOKEN = os.getenv("HF_TOKEN", "")
+ENV_URL = os.getenv("ENV_URL", "http://localhost:7860")
 
 MAX_STEPS = 20
 SUCCESS_SCORE_THRESHOLD = 0.6
@@ -303,7 +303,7 @@ def parse_action(raw: str) -> dict:
 # ── Main loop ──────────────────────────────────────────────────────────────
 
 def main() -> None:
-    client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
+    client = OpenAI(base_url=API_BASE_URL, api_key=HF_TOKEN)
     http = httpx.Client(base_url=ENV_URL, timeout=30.0)
 
     for task_idx, task_id in enumerate(TASKS):

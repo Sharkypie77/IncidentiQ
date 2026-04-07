@@ -150,7 +150,7 @@ python run_demo.py
 
 ```bash
 # Run the LLM agent against all 5 tasks
-API_BASE_URL=https://router.huggingface.co/v1 API_KEY=your-token python inference.py
+API_BASE_URL=https://router.huggingface.co/v1 HF_TOKEN=your-token python inference.py
 ```
 
 ### Run Tests
@@ -208,7 +208,7 @@ curl -X POST http://localhost:7860/step \
 |----------|---------|-------------|
 | `API_BASE_URL` | `https://router.huggingface.co/v1` | LLM API base URL |
 | `MODEL_NAME` | `Qwen/Qwen2.5-72B-Instruct` | Model to use for inference |
-| `API_KEY` | `""` | API key for the chosen provider |
+| `HF_TOKEN` | `""` | Hugging Face token for the chosen provider |
 | `ENV_URL` | `http://localhost:7860` | IncidentIQ server URL |
 
 ## File Structure
