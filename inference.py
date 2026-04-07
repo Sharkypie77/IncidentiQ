@@ -1,4 +1,4 @@
-"""IncidentIQ inference script — runs an LLM agent against all 3 tasks."""
+"""IncidentIQ inference script — runs an LLM agent against all 5 tasks."""
 
 from __future__ import annotations
 
@@ -10,17 +10,17 @@ from typing import Any, Dict, List, Optional
 
 import httpx
 from dotenv import load_dotenv
-from huggingface_hub import InferenceClient
+from openai import OpenAI
 
-# Load .env file (contains HF_TOKEN, etc.)
+# Load .env file
 load_dotenv()
 
 
 # ── Configuration ───────────────────────────────────────────────────────────
 
-API_BASE_URL = os.environ.get("API_BASE_URL", "https://api-inference.huggingface.co/v1")
-MODEL_NAME = os.environ.get("MODEL_NAME", "Qwen/Qwen2.5-72B-Instruct")
-API_KEY = os.environ.get("HF_TOKEN", "")
+API_BASE_URL = os.environ.get("API_BASE_URL", "https://openrouter.ai/api/v1")
+MODEL_NAME = os.environ.get("MODEL_NAME", "meta-llama/llama-3.3-70b-instruct:free")
+API_KEY = os.environ.get("API_KEY", "")
 ENV_URL = os.environ.get("ENV_URL", "http://localhost:7860")
 
 MAX_STEPS = 20
@@ -224,13 +224,13 @@ def format_observation(obs: dict) -> str:
 # ── LLM agent ──────────────────────────────────────────────────────────────
 
 def get_agent_action(
-    client: InferenceClient,
+    client: OpenAI,
     observation_text: str,
     history: List[dict],
     last_reward: float,
     step: int,
 ) -> str:
-    """Call the LLM and return its raw text response."""
+    """Call the LLM and return its raw text response with retry on rate limits."""
     messages: List[dict] = [{"role": "system", "content": SYSTEM_PROMPT}]
 
     # Include last 6 turns for context
@@ -243,20 +243,38 @@ def get_agent_action(
         "content": f"Step {step}. Last reward: {last_reward:.3f}\n\nCurrent observation:\n{observation_text}",
     })
 
-    try:
-        resp = client.chat_completion(
-            model=MODEL_NAME,
-            messages=messages,
-            max_tokens=300,
-            temperature=0.01,
-        )
-        return resp.choices[0].message.content.strip()
-    except Exception as e:
-        print(f"[DEBUG] LLM call failed: {e}", flush=True)
-        return json.dumps({
-            "action": "query_logs",
-            "params": {"service": "api-gateway", "pattern": "error"},
-        })
+    max_retries = 15
+    for attempt in range(max_retries):
+        try:
+            resp = client.chat.completions.create(
+                model=MODEL_NAME,
+                messages=messages,
+                max_tokens=300,
+                temperature=0.01,
+            )
+            return resp.choices[0].message.content.strip()
+        except Exception as e:
+            err_str = str(e).lower()
+            # Handle rate limits AND router upstream failures which are extremely common on OpenRouter free tiers
+            is_retryable = "429" in err_str or "rate" in err_str or "provider" in err_str or "502" in err_str or "503" in err_str
+            
+            if is_retryable and attempt < max_retries - 1:
+                # Exponential backoff capped at 2 minutes
+                wait = min(8 * (2 ** attempt), 120) 
+                print(f"[DEBUG] API congested (attempt {attempt+1}/{max_retries}). Waiting {wait}s...", flush=True)
+                time.sleep(wait)
+                continue
+                
+            print(f"[DEBUG] LLM call completely failed after {attempt+1} attempts: {e}", flush=True)
+            return json.dumps({
+                "action": "query_logs",
+                "params": {"service": "api-gateway", "pattern": "error"},
+            })
+
+    return json.dumps({
+        "action": "query_logs",
+        "params": {"service": "api-gateway", "pattern": "error"},
+    })
 
 
 def parse_action(raw: str) -> dict:
@@ -285,7 +303,7 @@ def parse_action(raw: str) -> dict:
 # ── Main loop ──────────────────────────────────────────────────────────────
 
 def main() -> None:
-    client = InferenceClient(api_key=API_KEY)
+    client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
     http = httpx.Client(base_url=ENV_URL, timeout=30.0)
 
     for task_idx, task_id in enumerate(TASKS):
@@ -313,6 +331,9 @@ def main() -> None:
         for step_num in range(1, MAX_STEPS + 1):
             if done:
                 break
+
+            # Extreme pacing to respect very strict free tier API limits (e.g. 5 requests per min)
+            time.sleep(12)
 
             obs_text = format_observation(observation)
             raw_action = get_agent_action(client, obs_text, history, last_reward, step_num)
