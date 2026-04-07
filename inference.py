@@ -135,9 +135,15 @@ Return ONLY valid JSON. No prose, no markdown, no explanation.
 """
 
 
-# ── Logging functions (exact spec format) ───────────────────────────────────
+# ── Logging functions (plain-text structured output for validator) ───────────
+# The hackathon validator scans stdout for lines literally starting with
+# [START], [STEP], [END].  We print BOTH the plain-text tag line (required
+# for the validator) AND a JSON detail line (useful for debugging).
 
 def log_start(task: str, env: str, model: str) -> None:
+    # Plain-text line the validator looks for
+    print(f"[START] task={task} env={env} model={model}", flush=True)
+    # JSON detail line for machine parsing / debugging
     print(
         json.dumps({"type": "[START]", "task": task, "env": env, "model": model}),
         flush=True,
@@ -145,6 +151,10 @@ def log_start(task: str, env: str, model: str) -> None:
 
 
 def log_step(step: int, action: str, reward: float, done: bool, error: Optional[str] = None) -> None:
+    # Plain-text line the validator looks for
+    err_part = f" error={error}" if error else ""
+    print(f"[STEP] step={step} reward={round(reward, 4)} done={done}{err_part}", flush=True)
+    # JSON detail line
     print(
         json.dumps({
             "type": "[STEP]",
@@ -158,10 +168,14 @@ def log_step(step: int, action: str, reward: float, done: bool, error: Optional[
     )
 
 
-def log_end(success: bool, steps: int, score: float, rewards: List[float]) -> None:
+def log_end(task: str, success: bool, steps: int, score: float, rewards: List[float]) -> None:
+    # Plain-text line the validator looks for
+    print(f"[END] task={task} score={round(score, 4)} steps={steps} success={success}", flush=True)
+    # JSON detail line
     print(
         json.dumps({
             "type": "[END]",
+            "task": task,
             "success": success,
             "steps": steps,
             "score": round(score, 4),
@@ -378,7 +392,7 @@ def main() -> None:
         score = min(max(total_reward / ceiling, 0.0), 1.0)
         success = score >= SUCCESS_SCORE_THRESHOLD
 
-        log_end(success, steps_taken, score, rewards)
+        log_end(task_id, success, steps_taken, score, rewards)
 
 
 if __name__ == "__main__":
