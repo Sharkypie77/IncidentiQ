@@ -9,10 +9,9 @@ from typing import List
 
 from env.utils import iso_timestamp as _iso
 
+
 from env.models import LogLine
 from env.state_machine import GroundTruth, ServiceState
-
-
 
 
 def _random_req_id(rng: random.Random) -> str:

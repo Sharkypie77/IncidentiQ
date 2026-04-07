@@ -12,9 +12,6 @@ from env.models import MetricPoint
 from env.state_machine import SERVICES, GroundTruth, ServiceState
 
 
-
-
-
 def generate_metrics(
     service: str,
     state: ServiceState,

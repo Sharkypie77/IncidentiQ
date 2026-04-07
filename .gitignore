@@ -6,3 +6,4 @@ dist/
 build/
 .env
 validate_output.txt
+inference_results.txt

@@ -10,8 +10,6 @@ from collections import OrderedDict
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
-MAX_SESSIONS = 100  # Evict oldest sessions beyond this limit
-
 from env.log_generator import generate_logs
 from env.metric_generator import generate_metrics
 from env.models import (
@@ -39,6 +37,8 @@ from tasks.task2_cascading_failure import Task2CascadingFailure
 from tasks.task3_silent_corruption import Task3SilentCorruption
 from tasks.task4_db_connection_limit import Task4DbConnectionLimit
 from tasks.task5_memory_leak_analytics import Task5MemoryLeakAnalytics
+
+MAX_SESSIONS = 100  # Evict oldest sessions beyond this limit
 
 
 class IncidentIQEnv:
