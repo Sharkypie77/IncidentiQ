@@ -7,12 +7,12 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import List
 
+from env.utils import iso_timestamp as _iso
+
 from env.models import LogLine
 from env.state_machine import GroundTruth, ServiceState
 
 
-def _iso(dt: datetime) -> str:
-    return dt.strftime("%Y-%m-%dT%H:%M:%S.") + f"{dt.microsecond // 1000:03d}Z"
 
 
 def _random_req_id(rng: random.Random) -> str:

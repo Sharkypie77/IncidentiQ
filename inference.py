@@ -25,6 +25,7 @@ ENV_URL = os.getenv("ENV_URL", "http://localhost:7860")
 
 MAX_STEPS = 20
 SUCCESS_SCORE_THRESHOLD = 0.6
+STEP_DELAY_SECONDS = float(os.getenv("STEP_DELAY_SECONDS", "12"))
 
 # Per-task reward ceilings: realistic max step rewards + terminal max (0.60)
 MAX_TOTAL_REWARD = {
@@ -333,7 +334,7 @@ def main() -> None:
                 break
 
             # Extreme pacing to respect very strict free tier API limits (e.g. 5 requests per min)
-            time.sleep(12)
+            time.sleep(STEP_DELAY_SECONDS)
 
             obs_text = format_observation(observation)
             raw_action = get_agent_action(client, obs_text, history, last_reward, step_num)

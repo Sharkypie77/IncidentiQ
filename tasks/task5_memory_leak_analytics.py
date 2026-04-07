@@ -130,9 +130,9 @@ class Task5MemoryLeakAnalytics(BaseTask):
                 if act in ("query_logs", "query_metrics") and svc == gt.root_cause_service:
                     score = max(score, 0.05)
                 if act == "check_config" and svc == gt.root_cause_service:
-                    score += 0.10
+                    score = max(score, 0.10)
                 if act == "hypothesize" and params.get("root_cause_service") == gt.root_cause_service:
-                    score += 0.10
+                    score = max(score, 0.10)
             return min(score, 0.25)
 
         params = close_action.get("params", {})

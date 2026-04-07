@@ -152,15 +152,17 @@ class RewardCalculator:
                 ]
                 if s not in all_affected and s not in gt.red_herring_services
             ]
-            if target not in all_affected:
+            # Red-herring check MUST come before the generic unaffected check,
+            # because red herrings are not in all_affected either.
+            if target in gt.red_herring_services:
+                reward = -0.08
+                reason = f"remediation targets a red-herring service ({target})"
+            elif target not in all_affected:
                 reward = -0.10
                 reason = f"remediation applied to unaffected service ({target})"
             elif rtype == "restart" and target in healthy_services:
                 reward = -0.05
                 reason = f"unnecessary restart of healthy service ({target})"
-            elif target in gt.red_herring_services:
-                reward = -0.08
-                reason = f"remediation targets a red-herring service ({target})"
             else:
                 reward = 0.0
                 reason = f"remediation '{rtype}' on {target}"

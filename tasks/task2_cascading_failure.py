@@ -107,9 +107,9 @@ class Task2CascadingFailure(BaseTask):
                 if act in ("query_logs", "query_metrics") and svc in gt.affected_services:
                     score = max(score, 0.03)
                 if act == "check_deployment" and svc == gt.root_cause_service:
-                    score += 0.05
+                    score = max(score, 0.05)
                 if act == "hypothesize" and entry.get("params", {}).get("root_cause_service") == gt.root_cause_service:
-                    score += 0.10
+                    score = max(score, 0.10)
             return min(score, 0.25)
 
         params = close_action.get("params", {})

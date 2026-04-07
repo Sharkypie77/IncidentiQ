@@ -4,9 +4,13 @@ from __future__ import annotations
 
 import json
 import random
+import threading
 import uuid
+from collections import OrderedDict
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
+
+MAX_SESSIONS = 100  # Evict oldest sessions beyond this limit
 
 from env.log_generator import generate_logs
 from env.metric_generator import generate_metrics
@@ -41,7 +45,9 @@ class IncidentIQEnv:
     """In-memory reinforcement-learning environment for incident response."""
 
     def __init__(self) -> None:
-        self.state: Dict[str, EpisodeState] = {}
+        self.state: OrderedDict[str, EpisodeState] = OrderedDict()
+        self.last_session_id: Optional[str] = None
+        self._lock = threading.Lock()
         self.tasks: Dict[str, BaseTask] = {
             "task1_cpu_saturation": Task1CpuSaturation(),
             "task2_cascading_failure": Task2CascadingFailure(),
@@ -50,6 +56,11 @@ class IncidentIQEnv:
             "task5_memory_leak_analytics": Task5MemoryLeakAnalytics(),
         }
         self.reward_calculator = RewardCalculator()
+
+    def _evict_old_sessions(self) -> None:
+        """Remove oldest sessions if we exceed MAX_SESSIONS."""
+        while len(self.state) > MAX_SESSIONS:
+            self.state.popitem(last=False)  # Remove oldest (FIFO)
 
     # ── helpers ──────────────────────────────────────────────────────────────
 
@@ -265,7 +276,11 @@ class IncidentIQEnv:
         episode = task.build_episode(seed)
 
         session_id = uuid.uuid4().hex
-        self.state[session_id] = episode
+
+        with self._lock:
+            self.state[session_id] = episode
+            self.last_session_id = session_id
+            self._evict_old_sessions()
 
         observation = self._build_observation(episode)
         result = ResetResult(
@@ -277,10 +292,10 @@ class IncidentIQEnv:
 
     def step(self, session_id: str, action: Action) -> StepResult:
         """Execute one step in the environment."""
-        if session_id not in self.state:
-            raise KeyError(f"Unknown session_id: {session_id}")
-
-        ep = self.state[session_id]
+        with self._lock:
+            if session_id not in self.state:
+                raise KeyError(f"Unknown session_id: {session_id}")
+            ep = self.state[session_id]
 
         if ep.done:
             observation = self._build_observation(ep)
@@ -349,10 +364,10 @@ class IncidentIQEnv:
 
     def get_state(self, session_id: str) -> dict:
         """Return the full episode state as a JSON-serializable dict."""
-        if session_id not in self.state:
-            raise KeyError(f"Unknown session_id: {session_id}")
-
-        ep = self.state[session_id]
+        with self._lock:
+            if session_id not in self.state:
+                raise KeyError(f"Unknown session_id: {session_id}")
+            ep = self.state[session_id]
 
         result: Dict[str, Any] = {
             "task_id": ep.task_id,

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import random
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set
 
 
 # ── Baseline healthy states for each service ────────────────────────────────
@@ -103,7 +103,7 @@ class EpisodeState:
     rng: random.Random
     alert_summary: str = ""
     recent_deployments: List[Dict[str, str]] = field(default_factory=list)
-    rewarded_services: set = field(default_factory=set)
+    rewarded_services: Set[str] = field(default_factory=set)
 
 
 # ── Failure propagation ─────────────────────────────────────────────────────

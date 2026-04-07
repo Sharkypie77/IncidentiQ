@@ -16,6 +16,8 @@ dependencies = [
     "faker==25.0.0",
     "huggingface_hub>=0.23.0",
     "httpx>=0.28.1",
+    "openai>=1.0.0",
+    "python-dotenv>=1.0.0",
 ]
 
 [project.optional-dependencies]

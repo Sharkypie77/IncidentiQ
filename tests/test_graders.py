@@ -2,12 +2,6 @@
 
 from __future__ import annotations
 
-import sys
-import os
-
-# Ensure project root is on sys.path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 from tasks.task1_cpu_saturation import Task1CpuSaturation
 from tasks.task2_cascading_failure import Task2CascadingFailure
 from tasks.task3_silent_corruption import Task3SilentCorruption

@@ -131,15 +131,15 @@ class Task3SilentCorruption(BaseTask):
                 if act == "check_config" and svc == gt.root_cause_service:
                     checked_config = True
                 if act == "check_config":
-                    score = max(score, 0.03)  # at least tried checking config
+                    score = max(score, 0.03)
                 if act == "hypothesize" and params.get("root_cause_service") == gt.root_cause_service:
                     correct_hypothesis = True
             if queried_root:
-                score += 0.05
+                score = max(score, 0.05)
             if checked_config:
-                score += 0.10
+                score = max(score, 0.10)
             if correct_hypothesis:
-                score += 0.10
+                score = max(score, 0.10)
             return min(score, 0.25)
 
         params = close_action.get("params", {})

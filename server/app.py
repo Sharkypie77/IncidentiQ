@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-import sys
 from contextlib import asynccontextmanager
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Dict, List, Optional
 from starlette.responses import JSONResponse
 
 from fastapi import FastAPI, HTTPException
@@ -183,7 +182,9 @@ async def schema() -> SchemaResponse:
 
 
 @app.post("/reset", response_model=ResetResponse)
-async def reset(body: ResetRequest) -> ResetResponse:
+async def reset(body: Optional[ResetRequest] = None) -> ResetResponse:
+    if body is None:
+        body = ResetRequest()
     # Default to first available task if none specified
     task_id = body.task_id
     if not task_id:
@@ -220,9 +221,8 @@ async def step(body: StepRequest) -> StepResult:
 @app.get("/state", response_model=StateResponse)
 async def state_root() -> StateResponse:
     """Return state for the most recent session (OpenEnv runtime contract)."""
-    if env.state:
-        session_id = list(env.state.keys())[-1]
-        data = env.get_state(session_id)
+    if env.last_session_id and env.last_session_id in env.state:
+        data = env.get_state(env.last_session_id)
         return StateResponse(**data)
     return StateResponse(task_id="", step_count=0, max_steps=0, done=False, service_states={}, cumulative_reward=0.0)
 
@@ -237,8 +237,10 @@ async def state(session_id: str) -> StateResponse:
 
 
 @app.post("/mcp", response_model=McpResponse, description="MCP protocol stub. Core environment interaction uses /reset and /step.")
-async def mcp_endpoint(body: dict = {}) -> McpResponse:
+async def mcp_endpoint(body: Optional[dict] = None) -> McpResponse:
     """MCP protocol stub. Core environment interaction uses /reset and /step."""
+    if body is None:
+        body = {}
     return McpResponse(
         jsonrpc="2.0",
         id=body.get("id", 1),
