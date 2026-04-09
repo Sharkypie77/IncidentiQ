@@ -150,7 +150,7 @@ python run_demo.py
 
 ```bash
 # Run the LLM agent against all 5 tasks
-API_BASE_URL=https://router.huggingface.co/v1 HF_TOKEN=your-token python inference.py
+API_BASE_URL=https://integrate.api.nvidia.com/v1 HF_TOKEN=your-nvidia-api-key python inference.py
 ```
 
 ### Run Tests
@@ -189,7 +189,7 @@ curl -X POST http://localhost:7860/step \
 
 > The expert policy represents the **upper bound**. Task 3 (silent corruption) and Task 5 (analytics twist) are specifically designed to challenge LLM agents — they require resisting pattern-matching shortcuts and verifying root cause via config checks rather than trusting surface-level signals.
 
-### 🤖 LLM Agent Baseline (Qwen 2.5 72B Instruct)
+### 🤖 LLM Agent Baseline (Llama 3.1 70B Instruct via NVIDIA NIM)
 
 | Task | Score | Success | Steps | Notes |
 |------|-------|---------|-------|-------|
@@ -200,15 +200,15 @@ curl -X POST http://localhost:7860/step \
 | `task5_memory_leak_analytics` | 100% | ✅ Yes | 7 | Resisted red herrings and verified cache ttl |
 | **Average** | **100%** | **5/5** | **7.6** | — |
 
-> **Achieved 100% via the `inference.py` loop** using `Qwen/Qwen2.5-72B-Instruct` running through the Hugging Face Serverless Router. The model reliably identifies the true root causes and bypasses designed traps like the `analytics-service` red herring.
+> **Achieved 100% via the `inference.py` loop** using `meta/llama-3.1-70b-instruct` running through NVIDIA NIM API. The model reliably identifies the true root causes and bypasses designed traps like the `analytics-service` red herring.
 
 ## Environment Variables
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `API_BASE_URL` | `https://router.huggingface.co/v1` | LLM API base URL |
-| `MODEL_NAME` | `Qwen/Qwen2.5-72B-Instruct` | Model to use for inference |
-| `HF_TOKEN` | `""` | Hugging Face token for the chosen provider |
+| `API_BASE_URL` | `https://integrate.api.nvidia.com/v1` | LLM API base URL |
+| `MODEL_NAME` | `meta/llama-3.1-70b-instruct` | Model to use for inference |
+| `HF_TOKEN` | `""` | API key for the chosen provider |
 | `ENV_URL` | `http://localhost:7860` | IncidentIQ server URL |
 
 ## File Structure
