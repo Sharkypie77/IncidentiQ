@@ -402,7 +402,8 @@ def main() -> None:
         # 4. Score and log end
         total_reward = sum(rewards)
         ceiling = MAX_TOTAL_REWARD.get(task_id, 0.85)
-        score = min(max(total_reward / ceiling, 0.0), 1.0)
+        # Validator requires scores strictly in (0, 1) — never 0.0 or 1.0
+        score = min(max(total_reward / ceiling, 0.01), 0.99)
         success = score >= SUCCESS_SCORE_THRESHOLD
 
         log_end(task_id, success, steps_taken, score, rewards)
