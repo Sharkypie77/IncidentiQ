@@ -11,265 +11,230 @@ tags:
   - incident-response
   - reinforcement-learning
 ---
-
-# IncidentIQ — Production Incident Response RL Environment
-
-> **What makes this special?** IncidentIQ is the first RL benchmark that grades AI agents on *real SRE reasoning* — red-herring resistance, config-vs-deploy diagnosis, and blast-radius accuracy — with fully deterministic scoring and zero LLM in the grading loop.
-
-IncidentIQ is an OpenEnv-compliant reinforcement learning environment that simulates production software incidents across a microservice architecture. An AI agent plays the role of an on-call Site Reliability Engineer (SRE), receiving alerts, investigating service health through logs, metrics, traces, and deployment histories, and ultimately diagnosing and remediating the root cause of an incident.
-
-Five tasks of increasing difficulty test progressively deeper reasoning — from straightforward CPU saturation to subtle silent data corruption, and even a task that deliberately inverts prior assumptions about which service is suspicious.
-
+# IncidentIQ
+IncidentIQ is a reinforcement learning environment for production incident response in a microservice system.
+Instead of treating incident handling as a one-shot diagnosis, IncidentIQ models it as a sequential decision process:
+an agent inspects logs/metrics/traces/config/deployments, forms hypotheses, applies remediation, and closes the incident.
+Rewards are deterministic and grading is fully programmatic (no LLM in the grader).
 ## At a Glance
-
 | Item | Value |
-|------|-------|
+|---|---|
 | Project type | Reinforcement learning environment |
 | Domain | SRE / production incident response |
 | Interaction style | Multi-step `reset -> step -> close_incident` |
 | Grading | Deterministic, programmatic, no LLM in grader |
-| Tasks | 5 (easy -> hard) |
-| UI | Built-in web console at `GET /` |
+| Task count | 5 |
+| Difficulty structure | Easy, Medium, Hard, Twist |
+| Built-in UI | `GET /` |
 | API index | `GET /api` |
-
-## Environment Description
-
-IncidentIQ simulates a production microservice architecture consisting of five services: **api-gateway**, **order-service**, **auth-service**, **postgres**, and **analytics-service**. These services have realistic baseline performance characteristics and a defined dependency graph. When a failure occurs in one service, it propagates through the dependency graph, creating cascading degradation that mirrors real-world incident patterns.
-
-Why does this matter? Incident response is one of the highest-stakes activities in software engineering, yet it is rarely practised in a controlled, repeatable setting. IncidentIQ provides a sandbox where AI agents (and humans) can develop and benchmark their diagnostic reasoning, triage skills, and remediation judgement — all without risking production systems.
-
-### Key Design Decisions
-
-| Decision | Rationale |
-|----------|-----------|
-| **Deterministic rewards** | No LLM in grading — same actions always produce same scores |
-| **Red herring hardening** | analytics-service looks suspicious in most tasks but is rarely the cause |
-| **Task 5 twist** | analytics-service IS the root cause — tests whether agents blindly ignore it |
-| **Seeded RNG per episode** | Reproducible scenarios for benchmarking |
-| **Ground truth hidden until done** | Agents can't cheat by reading `/state` |
-| **Efficiency bonus** | Rewards agents that solve faster |
-
-## Observation Space
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `alert_summary` | `str` | Human-readable summary of the triggering alert |
-| `service_health` | `Dict[str, ServiceHealth]` | Current health snapshot of every service |
-| `recent_logs` | `List[LogLine]` | Most recent log entries across all services |
-| `metrics` | `Dict[str, List[MetricPoint]]` | Time-series metrics keyed by `{service}/{metric}` |
+| Score bounds | Strictly clamped to `(0.01, 0.99)` |
+## What This Project Is
+| Question | Answer |
+|---|---|
+| Is this a model? | No. It is an environment an agent interacts with. |
+| Is this only a benchmark sheet? | No. It includes environment state, reward logic, and episode flow. |
+| Is grading LLM-based? | No. Grading is deterministic and reproducible. |
+| Why RL for this? | Because step-to-step choices affect final incident quality and closure score. |
+## Why This Problem Matters
+Real incidents are rarely solved by one log line.
+The hardest failures include noisy symptoms, red herrings, cascading dependencies, and config-vs-deploy ambiguity.
+IncidentIQ is designed to measure whether an agent can reason through those constraints rather than pattern-match.
+## Why Reinforcement Learning Fits
+In incident response:
+- a good step at time `t` depends on what was discovered earlier
+- locally plausible actions can hurt terminal score
+- correctness is often clear only at close time
+RL fits this well: sequential actions, intermediate rewards, and delayed terminal grading.
+## Environment Overview
+IncidentIQ simulates five services:
+`api-gateway`, `order-service`, `auth-service`, `postgres`, `analytics-service`.
+Failures propagate through a dependency graph and create realistic cascade behavior.
+### Episode Flow
+| Step | What happens | Why it matters |
+|---|---|---|
+| 1 | Client calls `POST /reset` with `task_id` | Starts a fresh incident session |
+| 2 | Environment returns an observation | Agent sees health, logs, metrics, traces, deployments |
+| 3 | Agent calls `POST /step` with an action | Agent investigates or remediates |
+| 4 | Environment returns reward + new observation | Agent gets deterministic learning signal |
+| 5 | Agent calls `close_incident` action | Terminal grading is applied |
+### Action Space
+| Action | Params | Purpose |
+|---|---|---|
+| `query_logs` | `{service, pattern}` | Inspect service logs |
+| `query_metrics` | `{service, metric, window_minutes}` | Inspect time-series metrics |
+| `query_traces` | `{service}` | Inspect distributed traces |
+| `check_deployment` | `{service}` | Inspect deployment history |
+| `check_config` | `{service, key}` | Inspect configuration state |
+| `hypothesize` | `{root_cause_service, mechanism, confidence}` | Record root-cause hypothesis |
+| `remediate` | `{type, target, details}` | Apply rollback/restart/config patch |
+| `close_incident` | `{root_cause_service, mechanism, remediation_taken, blast_radius, summary}` | End episode and trigger terminal grading |
+### Observation Space
+| Field | Type | Meaning |
+|---|---|---|
+| `alert_summary` | `str` | Triggering incident summary |
+| `service_health` | `Dict[str, ServiceHealth]` | Current service status snapshot |
+| `recent_logs` | `List[LogLine]` | Recent logs across services |
+| `metrics` | `Dict[str, List[MetricPoint]]` | Time-series metrics |
 | `dependency_graph` | `Dict[str, List[str]]` | Service dependency graph |
-| `recent_deployments` | `List[Deployment]` | Recent deployment records |
-| `step_number` | `int` | Current step index (0-based) |
-| `steps_remaining` | `int` | Steps left before timeout |
-| `last_action_result` | `Optional[str]` | Result from the previous action |
+| `recent_deployments` | `List[Deployment]` | Recent deployments |
+| `step_number` | `int` | Current step index |
+| `steps_remaining` | `int` | Remaining budget |
+| `last_action_result` | `Optional[str]` | Last action result summary |
+### Example Interaction
+```text
+POST /reset {"task_id":"task1_cpu_saturation"}
+-> returns session_id + initial observation
 
-## Action Space
+POST /step {"session_id":"...","action":{"action":"query_logs","params":{"service":"order-service","pattern":"error"}}}
+-> returns reward + next observation
 
-| Action | Params | Description |
-|--------|--------|-------------|
-| `query_logs` | `{service, pattern}` | Search logs for a service by pattern |
-| `query_metrics` | `{service, metric, window_minutes}` | Get time-series metrics for a specific metric |
-| `query_traces` | `{service}` | Get distributed traces for a service |
-| `check_deployment` | `{service}` | Get recent deployment records |
-| `check_config` | `{service, key}` | Check a configuration value |
-| `hypothesize` | `{root_cause_service, mechanism, confidence}` | Record a hypothesis |
-| `remediate` | `{type, target, details}` | Take a remediation action (rollback/restart/config_patch) |
-| `close_incident` | `{root_cause_service, mechanism, remediation_taken, blast_radius, summary}` | Close the incident and trigger final grading |
-
-## AI Analysis Endpoints
-
-| Endpoint | Description |
-|----------|-------------|
-| `GET /` | Browser UI console for running sessions and viewing AI insights |
-| `GET /api` | API index with available endpoints |
-| `GET /timeline/{session_id}` | Reconstructs an incident timeline from deployments, anomalies, and agent actions |
-| `GET /root-cause-tree/{session_id}` | Returns top root-cause candidates with probabilities and evidence |
-| `POST /ask_incident` | Lightweight natural-language incident Q&A over a session |
-
-## Tasks
-
-| ID | Difficulty | Max Steps | Root Cause | Description |
-|----|-----------|-----------|------------|-------------|
-| `task1_cpu_saturation` | Easy | 15 | order-service | CPU saturation from missing DB index. Remediation: rollback |
-| `task2_cascading_failure` | Medium | 20 | auth-service | Redis pool exhaustion cascading to API gateway 503s. Remediation: restart |
-| `task3_silent_corruption` | Hard | 30 | order-service | Payment race condition causing 3% double-charges with no outage. Config change 6 days ago. Remediation: config_patch |
-| `task4_db_connection_limit` | Medium | 20 | postgres | max_connections reduced from 100→20 by config change 2 days ago. Remediation: config_patch |
-| `task5_memory_leak_analytics` | Medium-Hard | 25 | analytics-service | **Twist**: analytics-service IS the root cause (unbounded batch cache). Remediation: config_patch |
-
+POST /step {"session_id":"...","action":{"action":"close_incident","params":{...}}}
+-> returns terminal reward and done=true
+```
+## Benchmark Tasks
+| Task ID | Difficulty | Max Steps | Root Cause | Main challenge |
+|---|---|---:|---|---|
+| `task1_cpu_saturation` | Easy | 15 | `order-service` | Missing DB index causing CPU saturation |
+| `task2_cascading_failure` | Medium | 20 | `auth-service` | Redis pool exhaustion causing cascade |
+| `task3_silent_corruption` | Hard | 30 | `order-service` | Silent corruption from config race condition |
+| `task4_db_connection_limit` | Medium | 20 | `postgres` | Reduced DB connection limit |
+| `task5_memory_leak_analytics` | Medium-Hard | 25 | `analytics-service` | Twist task where analytics is true root cause |
 ### Task Design Philosophy
-
-- **Tasks 1-4**: `analytics-service` is always a red herring — it looks suspicious but is never the root cause
-- **Task 5**: Flips the script — `analytics-service` IS the genuine root cause. Tests whether agents adapted vs. learned a shortcut
-
-## Reward Function
-
-### Step Rewards
-
-| Condition | Reward | Description |
-|-----------|--------|-------------|
-| Query logs/metrics of root-cause service | +0.08 | Targeted investigation |
-| Query logs/metrics of affected service | +0.05 | Relevant investigation |
-| Hypothesis targets root-cause service | +0.10 | Correct hypothesis |
-| Hypothesis targets affected service | +0.05 | Partial hypothesis |
-| Check deployment of root-cause service | +0.03 | Good investigation |
-| Remediation on wrong service | -0.10 | Misguided action |
-| Restart of healthy service | -0.05 | Unnecessary action |
-| Any action targeting red-herring service | -0.08 | Distraction penalty |
-| Repeated action (same action+params) | -0.01 | Loop penalty |
-| All other valid actions | +0.00 | Neutral exploration |
-
-Step rewards are clamped to **[-0.15, +0.10]**.
-
-### Terminal Rewards (on `close_incident`)
-
+| Design choice | Why it exists |
+|---|---|
+| Tasks 1-4 keep analytics as red herring | Tests distraction resistance |
+| Task 5 flips analytics to real cause | Tests adaptation vs shortcut behavior |
+| Config-heavy root causes | Forces deeper reasoning beyond log keywords |
+## Reward Design
+### Per-step Rewards
 | Condition | Reward |
-|-----------|--------|
+|---|---:|
+| Query logs/metrics on root-cause service | +0.08 |
+| Query logs/metrics on affected service | +0.05 |
+| Correct hypothesis target | +0.10 |
+| Partial hypothesis target | +0.05 |
+| Check deployment/config on root-cause service | +0.03 |
+| Wrong remediation target | -0.10 |
+| Restart healthy service | -0.05 |
+| Target red-herring service | -0.08 |
+| Repeated same action+params | -0.01 |
+Step rewards are clamped to `[-0.15, +0.10]`.
+### Terminal Rewards (`close_incident`)
+| Component | Reward |
+|---|---:|
 | Correct `root_cause_service` | +0.25 |
-| Mechanism matches ground truth | +0.15 |
-| Correct `remediation_taken` | +0.15 |
-| Exact `blast_radius` match | +0.10 |
-| No red-herring services in blast radius | +0.05 |
-| Efficiency bonus | +0.10 × (1 - steps/max_steps) |
-
-Terminal rewards are clamped to **[0.0, 0.60]**.
-
-For benchmark compatibility, final task scores are clamped to the strict range **(0.01, 0.99)**.
-
-## Setup and Usage
-
-### Quick Demo (No LLM Required)
-
+| Correct mechanism | +0.15 |
+| Correct remediation | +0.15 |
+| Exact blast radius | +0.10 |
+| No red-herring blast entries | +0.05 |
+| Efficiency bonus | `+0.10 * (1 - steps/max_steps)` |
+Terminal rewards are clamped to `[0.0, 0.60]`.
+## Deterministic Grading and Score Bounds
+| Rule | Effect |
+|---|---|
+| No randomness in grader | Same episode history always yields same score |
+| No LLM in grading loop | Reproducible and audit-friendly evaluation |
+| Final score clamp | Strictly `(0.01, 0.99)` |
+This strict score range is required by benchmark validators that reject `0.0` and `1.0`.
+## API Reference
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/` | Browser UI console |
+| `GET` | `/api` | API metadata and endpoint list |
+| `GET` | `/health` | Health check |
+| `GET` | `/metadata` | Environment metadata |
+| `GET` | `/schema` | Action/observation/state schemas |
+| `GET` | `/tasks` | List benchmark tasks |
+| `POST` | `/reset` | Start episode |
+| `POST` | `/step` | Execute one action |
+| `GET` | `/state` | State for latest session |
+| `GET` | `/state/{session_id}` | State for a specific session |
+| `GET` | `/timeline/{session_id}` | Reconstructed incident timeline |
+| `GET` | `/root-cause-tree/{session_id}` | Ranked root-cause candidates |
+| `POST` | `/ask_incident` | Natural-language incident Q&A |
+| `POST` | `/mcp` | MCP protocol stub |
+## UI Console
+Open `http://localhost:7860` after server start.
+The UI supports:
+- reset task sessions
+- run arbitrary actions
+- inspect timeline/root-cause tree
+- ask natural-language incident questions
+## Recorded Inference Run (Recent)
+| Task | Success | Steps |
+|---|---|---:|
+| `task1_cpu_saturation` | ✅ | 6 |
+| `task2_cascading_failure` | ✅ | 6 |
+| `task3_silent_corruption` | ✅ | 7 |
+| `task4_db_connection_limit` | ✅ | 7 |
+| `task5_memory_leak_analytics` | ✅ | 5 |
+| **Summary** | **5/5 solved** | **6.2 avg** |
+## Running the Project
+### Environment Variables
+| Variable | Default | Required | Description |
+|---|---|---|---|
+| `API_BASE_URL` | `https://integrate.api.nvidia.com/v1` | No | LLM API base URL |
+| `MODEL_NAME` | `meta/llama-3.1-70b-instruct` | No | Model name for inference |
+| `HF_TOKEN` | — | Yes | Provider API key |
+| `ENV_URL` | `http://localhost:7860` | No | Environment server URL |
+| `STEP_DELAY_SECONDS` | `0` | No | Delay between inference steps |
+| `RESCUE_START_STEP` | `6` | No | Inference rescue mode start |
+| `FORCE_CLOSE_STEP` | `9` | No | Forced close step |
+### Quick Local Run
 ```bash
-# 1. Install dependencies
 pip install -r requirements.txt
-
-# 2. Start the server
 uvicorn server.app:app --host 0.0.0.0 --port 7860
-
-# 3. Open the UI
-# http://localhost:7860
-
-# 4. Run the demo — expert agent solves all 5 tasks with colored output
+# open http://localhost:7860
 python run_demo.py
 ```
-
-The demo runs a deterministic expert policy through all 5 tasks, showing:
-- Step-by-step agent actions with reasoning
-- Real-time reward feedback
-- Service health dashboards
-- Final benchmark summary table
-- Results saved to `benchmark_results.json`
-
-### Docker
-
+### Docker Run
 ```bash
-# Build the image
 docker build -t incidentiq .
-
-# Run the server
 docker run -p 7860:7860 incidentiq
-
-# Run demo (in another terminal)
-python run_demo.py
 ```
-
-### LLM Agent Inference
-
+### LLM Inference
 ```bash
-# Run the LLM agent against all 5 tasks
-API_BASE_URL=https://integrate.api.nvidia.com/v1 HF_TOKEN=your-nvidia-api-key python inference.py
+API_BASE_URL=https://integrate.api.nvidia.com/v1 HF_TOKEN=your-key python inference.py
 ```
-
-### Run Tests
-
+### Tests
 ```bash
-# 18 tests: spec + grader + server feature coverage
 pytest tests/ -v
 ```
-
-### Quick Smoke Test
-
+## Hugging Face Space Usage
+Set your environment URL to the live Space and run inference:
 ```bash
-# Reset a task
-curl -X POST http://localhost:7860/reset \
-  -H "Content-Type: application/json" \
-  -d '{"task_id":"task1_cpu_saturation"}'
-
-# Take a step
-curl -X POST http://localhost:7860/step \
-  -H "Content-Type: application/json" \
-  -d '{"session_id":"<id>","action":{"action":"query_logs","params":{"service":"order-service","pattern":"error"}}}'
+ENV_URL=https://Zewx77-incidentiq.hf.space HF_TOKEN=your-key python inference.py
 ```
-
-## Benchmark Results
-
-### Expert Policy (Deterministic — No LLM)
-
-| Task | Difficulty | Steps | Score | Reward | Result |
-|------|-----------|-------|-------|--------|--------|
-| `task1_cpu_saturation` | Easy | 7 | 99% | +0.89 | ✅ Solved |
-| `task2_cascading_failure` | Medium | 9 | 99% | +0.99 | ✅ Solved |
-| `task3_silent_corruption` | Hard | 8 | 99% | +0.92 | ✅ Solved |
-| `task4_db_connection_limit` | Medium | 7 | 99% | +0.94 | ✅ Solved |
-| `task5_memory_leak_analytics` | Medium-Hard | 7 | 99% | +0.89 | ✅ Solved |
-| **Average** | — | **7.6** | **99%** | — | **5/5** |
-
-> The expert policy represents the **upper bound**. Task 3 (silent corruption) and Task 5 (analytics twist) are specifically designed to challenge LLM agents — they require resisting pattern-matching shortcuts and verifying root cause via config checks rather than trusting surface-level signals.
-
-### 🤖 Recent LLM Inference Run (NVIDIA NIM + rescue policy)
-
-| Task | Success | Steps |
-|------|---------|-------|
-| `task1_cpu_saturation` | ✅ Yes | 6 |
-| `task2_cascading_failure` | ✅ Yes | 6 |
-| `task3_silent_corruption` | ✅ Yes | 7 |
-| `task4_db_connection_limit` | ✅ Yes | 7 |
-| `task5_memory_leak_analytics` | ✅ Yes | 5 |
-| **Summary** | **5/5 solved** | **6.2 avg** |
-
-> `inference.py` now enforces strict output formatting and includes a deterministic rescue mode so episodes finish reliably within the step budget.
-
-## Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `API_BASE_URL` | `https://integrate.api.nvidia.com/v1` | LLM API base URL |
-| `MODEL_NAME` | `meta/llama-3.1-70b-instruct` | Model to use for inference |
-| `HF_TOKEN` | **Required** | API key for the chosen provider |
-| `ENV_URL` | `http://localhost:7860` | IncidentIQ server URL |
-| `STEP_DELAY_SECONDS` | `0` | Delay between inference steps |
-| `RESCUE_START_STEP` | `6` | Step index where deterministic rescue mode can begin |
-| `FORCE_CLOSE_STEP` | `9` | Step index where agent forces `close_incident` |
-
-## File Structure
-
+Basic checks:
+```bash
+curl https://Zewx77-incidentiq.hf.space/health
+curl https://Zewx77-incidentiq.hf.space/tasks
 ```
-incidentiq/
-├── Dockerfile              # Multi-stage Python 3.11-slim build
-├── openenv.yaml            # OpenEnv manifest (5 tasks)
-├── requirements.txt        # Dependencies
-├── run_demo.py             # One-command demo + benchmark (no LLM needed)
-├── inference.py            # LLM agent loop (all 5 tasks)
-├── benchmark_results.json  # Full benchmark results (auto-generated)
-├── server/
-│   ├── app.py              # FastAPI server + UI/API routes
-│   └── index.html          # Web UI console served at /
-├── env/
-│   ├── environment.py      # Core RL environment
-│   ├── models.py           # Pydantic v2 models (20 schemas)
-│   ├── state_machine.py    # Service states, failure propagation
-│   ├── reward.py           # Deterministic reward calculator
-│   ├── log_generator.py    # Synthetic logs with fault injection
-│   └── metric_generator.py # 4-metric time series
-├── tasks/
-│   ├── base.py             # Abstract base class
-│   ├── task1_cpu_saturation.py
-│   ├── task2_cascading_failure.py
-│   ├── task3_silent_corruption.py
-│   ├── task4_db_connection_limit.py
-│   └── task5_memory_leak_analytics.py
-└── tests/
-    ├── test_spec.py            # OpenEnv spec compliance tests
-    ├── test_graders.py         # Grader accuracy tests
-    └── test_server_features.py # UI/API endpoint behavior tests
-```
+## Repository Structure
+| Path | Purpose |
+|---|---|
+| `openenv.yaml` | OpenEnv manifest |
+| `server/app.py` | FastAPI app + API/UI routes |
+| `server/index.html` | Browser UI |
+| `env/environment.py` | Core episode loop |
+| `env/reward.py` | Deterministic reward calculator |
+| `tasks/*.py` | Task definitions and grading logic |
+| `inference.py` | LLM inference loop |
+| `run_demo.py` | Deterministic expert run |
+| `tests/` | Spec, grader, and server tests |
+## Submission Strengths
+| Strength | Why it matters |
+|---|---|
+| Real incident-response domain | Strong practical relevance |
+| Deterministic evaluation | Reproducible scoring for judges |
+| Curriculum tasks + twist | Tests deeper reasoning and adaptation |
+| Multi-signal observability | Logs + metrics + traces + deploy + config |
+| Built-in UI + API | Easy to demo and inspect behavior |
+## Recent Fixes
+| Fix | Reason |
+|---|---|
+| Strict score clamp to `(0.01, 0.99)` | Prevent validator rejection |
+| Inference output normalization | Ensures parser-safe `[START]/[STEP]/[END]` lines |
+| Rescue mode in inference | Improves completion reliability under drift |
+| Root UI + `/api` split | Better user experience with preserved API index |
+| Timeline/root-cause/Q&A endpoints | Better explainability and demo value |
