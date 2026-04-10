@@ -34,11 +34,11 @@ RESCUE_START_STEP = int(os.getenv("RESCUE_START_STEP", "6"))
 FORCE_CLOSE_STEP = int(os.getenv("FORCE_CLOSE_STEP", "9"))
 
 MAX_TOTAL_REWARD = {
-    "task1_cpu_saturation": 0.85,
-    "task2_cascading_failure": 0.85,
-    "task3_silent_corruption": 0.90,
-    "task4_db_connection_limit": 0.85,
-    "task5_memory_leak_analytics": 0.85,
+    "task1_cpu_saturation": 1.05,
+    "task2_cascading_failure": 1.10,
+    "task3_silent_corruption": 1.05,
+    "task4_db_connection_limit": 1.05,
+    "task5_memory_leak_analytics": 1.05,
 }
 TASKS = [
     "task1_cpu_saturation",

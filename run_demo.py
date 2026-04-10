@@ -237,9 +237,9 @@ def run_task_demo(client: httpx.Client, task_id: str) -> Dict[str, Any]:
 
     # Results
     total_reward = sum(rewards)
-    ceiling = {"task1_cpu_saturation": 0.85, "task2_cascading_failure": 0.85,
-               "task3_silent_corruption": 0.90, "task4_db_connection_limit": 0.85,
-               "task5_memory_leak_analytics": 0.85}.get(task_id, 0.85)
+    ceiling = {"task1_cpu_saturation": 1.05, "task2_cascading_failure": 1.10,
+               "task3_silent_corruption": 1.05, "task4_db_connection_limit": 1.05,
+               "task5_memory_leak_analytics": 1.05}.get(task_id, 1.05)
     score = min(max(total_reward / ceiling, 0.01), 0.99)
     success = score >= 0.5
 

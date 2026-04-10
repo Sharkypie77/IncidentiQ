@@ -143,18 +143,18 @@ This strict score range is required by benchmark validators that reject `0.0` an
 | Terminal reward clamp | `[0.001, 0.599]` | `env/reward.py` |
 | Final task score clamp | `(0.01, 0.99)` | task graders + `run_demo.py` + `inference.py` |
 | Benchmark success rate | `100% (5/5)` | `benchmark_results.json` |
-| Average benchmark score | `0.99` | `benchmark_results.json` |
+| Average benchmark score | `0.8724` | `benchmark_results.json` |
 | Average benchmark steps | `7.6` | `benchmark_results.json` |
 | Reward/score tests | `3 passed` | `test_step_reward_range`, `test_graders_return_valid_float`, `test_perfect_agent_scores_high` |
 ### Per-task Reward Snapshot (Expert Policy)
 | Task | Steps | Total Reward | Score |
 |---|---:|---:|---:|
-| `task1_cpu_saturation` | 7 | 0.889 | 0.99 |
-| `task2_cascading_failure` | 9 | 0.989 | 0.99 |
-| `task3_silent_corruption` | 8 | 0.919 | 0.99 |
-| `task4_db_connection_limit` | 7 | 0.939 | 0.99 |
-| `task5_memory_leak_analytics` | 7 | 0.889 | 0.99 |
-| **Average** | **7.6** | **0.925** | **0.99** |
+| `task1_cpu_saturation` | 7 | 0.889 | 0.8467 |
+| `task2_cascading_failure` | 9 | 0.989 | 0.8991 |
+| `task3_silent_corruption` | 8 | 0.919 | 0.8752 |
+| `task4_db_connection_limit` | 7 | 0.939 | 0.8943 |
+| `task5_memory_leak_analytics` | 7 | 0.889 | 0.8467 |
+| **Average** | **7.6** | **0.925** | **0.8724** |
 ## API Reference
 | Method | Path | Purpose |
 |---|---|---|

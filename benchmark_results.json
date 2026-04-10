@@ -7,7 +7,7 @@
       "name": "Task 1: CPU Saturation",
       "difficulty": "easy",
       "success": true,
-      "score": 0.99,
+      "score": 0.8466666666666667,
       "steps": 7,
       "total_reward": 0.889,
       "rewards": [
@@ -25,7 +25,7 @@
       "name": "Task 2: Cascading Failure",
       "difficulty": "medium",
       "success": true,
-      "score": 0.99,
+      "score": 0.899090909090909,
       "steps": 9,
       "total_reward": 0.989,
       "rewards": [
@@ -45,7 +45,7 @@
       "name": "Task 3: Silent Corruption",
       "difficulty": "hard",
       "success": true,
-      "score": 0.99,
+      "score": 0.8752380952380953,
       "steps": 8,
       "total_reward": 0.919,
       "rewards": [
@@ -64,7 +64,7 @@
       "name": "Task 4: DB Connection Limit",
       "difficulty": "medium",
       "success": true,
-      "score": 0.99,
+      "score": 0.8942857142857144,
       "steps": 7,
       "total_reward": 0.9390000000000001,
       "rewards": [
@@ -82,7 +82,7 @@
       "name": "Task 5: Memory Leak (Twist)",
       "difficulty": "medium-hard",
       "success": true,
-      "score": 0.99,
+      "score": 0.8466666666666667,
       "steps": 7,
       "total_reward": 0.889,
       "rewards": [
@@ -98,7 +98,7 @@
   ],
   "summary": {
     "success_rate": 1.0,
-    "avg_score": 0.99,
+    "avg_score": 0.8723896103896104,
     "avg_steps": 7.6,
     "total_tasks": 5,
     "tasks_solved": 5
