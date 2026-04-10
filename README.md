@@ -136,6 +136,16 @@ Terminal rewards are clamped to `[0.0, 0.60]`.
 | No LLM in grading loop | Reproducible and audit-friendly evaluation |
 | Final score clamp | Strictly `(0.01, 0.99)` |
 This strict score range is required by benchmark validators that reject `0.0` and `1.0`.
+## Reward System Validation Snapshot
+| Factor | Current value | Source |
+|---|---|---|
+| Step reward clamp | `[-0.15, +0.10]` | `env/reward.py` |
+| Terminal reward clamp | `[0.001, 0.599]` | `env/reward.py` |
+| Final task score clamp | `(0.01, 0.99)` | task graders + `run_demo.py` + `inference.py` |
+| Benchmark success rate | `100% (5/5)` | `benchmark_results.json` |
+| Average benchmark score | `0.99` | `benchmark_results.json` |
+| Average benchmark steps | `7.6` | `benchmark_results.json` |
+| Reward/score tests | `3 passed` | `test_step_reward_range`, `test_graders_return_valid_float`, `test_perfect_agent_scores_high` |
 ## API Reference
 | Method | Path | Purpose |
 |---|---|---|
