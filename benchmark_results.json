@@ -7,9 +7,9 @@
       "name": "Task 1: CPU Saturation",
       "difficulty": "easy",
       "success": true,
-      "score": 1.0,
+      "score": 0.99,
       "steps": 7,
-      "total_reward": 0.89,
+      "total_reward": 0.889,
       "rewards": [
         0.08,
         0.08,
@@ -17,7 +17,7 @@
         0.03,
         0.1,
         0.0,
-        0.6
+        0.599
       ]
     },
     {
@@ -25,9 +25,9 @@
       "name": "Task 2: Cascading Failure",
       "difficulty": "medium",
       "success": true,
-      "score": 1.0,
+      "score": 0.99,
       "steps": 9,
-      "total_reward": 0.99,
+      "total_reward": 0.989,
       "rewards": [
         0.05,
         0.05,
@@ -37,7 +37,7 @@
         0.03,
         0.1,
         0.0,
-        0.6
+        0.599
       ]
     },
     {
@@ -45,9 +45,9 @@
       "name": "Task 3: Silent Corruption",
       "difficulty": "hard",
       "success": true,
-      "score": 1.0,
+      "score": 0.99,
       "steps": 8,
-      "total_reward": 0.9199999999999999,
+      "total_reward": 0.919,
       "rewards": [
         0.08,
         0.08,
@@ -56,7 +56,7 @@
         0.03,
         0.1,
         0.0,
-        0.6
+        0.599
       ]
     },
     {
@@ -64,9 +64,9 @@
       "name": "Task 4: DB Connection Limit",
       "difficulty": "medium",
       "success": true,
-      "score": 1.0,
+      "score": 0.99,
       "steps": 7,
-      "total_reward": 0.94,
+      "total_reward": 0.9390000000000001,
       "rewards": [
         0.08,
         0.08,
@@ -74,7 +74,7 @@
         0.03,
         0.1,
         0.0,
-        0.6
+        0.599
       ]
     },
     {
@@ -82,9 +82,9 @@
       "name": "Task 5: Memory Leak (Twist)",
       "difficulty": "medium-hard",
       "success": true,
-      "score": 1.0,
+      "score": 0.99,
       "steps": 7,
-      "total_reward": 0.89,
+      "total_reward": 0.889,
       "rewards": [
         0.08,
         0.08,
@@ -92,13 +92,13 @@
         0.03,
         0.1,
         0.0,
-        0.6
+        0.599
       ]
     }
   ],
   "summary": {
     "success_rate": 1.0,
-    "avg_score": 1.0,
+    "avg_score": 0.99,
     "avg_steps": 7.6,
     "total_tasks": 5,
     "tasks_solved": 5

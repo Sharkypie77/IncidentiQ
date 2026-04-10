@@ -98,7 +98,7 @@ class Task1CpuSaturation(BaseTask):
                     score = max(score, 0.05)
                 if act == "hypothesize" and entry.get("params", {}).get("root_cause_service") == gt.root_cause_service:
                     score = max(score, 0.10)
-            return min(score, 0.25)
+            return max(0.01, min(score, 0.25))
 
         # Full grading from close_incident params
         params = close_action.get("params", {})
@@ -125,4 +125,4 @@ class Task1CpuSaturation(BaseTask):
         efficiency = 1.0 - episode_state.step_count / episode_state.max_steps
         score += 0.10 * max(0.0, efficiency)
 
-        return min(score, 1.0)
+        return max(0.01, min(score, 0.99))
