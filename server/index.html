@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>IncidentIQ Console</title>
+  <style>
+    :root { color-scheme: dark; }
+    body { font-family: Arial, sans-serif; margin: 0; background: #0f1117; color: #e6edf3; }
+    .wrap { max-width: 1100px; margin: 20px auto; padding: 0 16px; }
+    h1 { margin: 0 0 8px; }
+    .sub { color: #9da7b3; margin-bottom: 18px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
+    .card { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 14px; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+    input, select, textarea, button {
+      background: #0d1117; color: #e6edf3; border: 1px solid #30363d; border-radius: 6px;
+      padding: 8px; font-size: 14px;
+    }
+    button { cursor: pointer; }
+    button:hover { border-color: #58a6ff; }
+    textarea { width: 100%; min-height: 120px; resize: vertical; }
+    .mono { font-family: Consolas, monospace; }
+    #output { white-space: pre-wrap; max-height: 420px; overflow: auto; }
+    .ok { color: #3fb950; }
+    .warn { color: #d29922; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>IncidentIQ Console</h1>
+    <div class="sub">Run tasks, execute actions, inspect timeline, and ask incident questions.</div>
+
+    <div class="grid">
+      <div class="card">
+        <strong>Server</strong>
+        <div class="row">
+          <button id="btn-health">Refresh Health</button>
+          <span id="health" class="mono warn">checking...</span>
+        </div>
+        <div class="row">
+          <button id="btn-tasks">Load Tasks</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <strong>Session</strong>
+        <div class="row">
+          <select id="task"></select>
+          <input id="seed" placeholder="seed (optional)" />
+          <button id="btn-reset">Reset</button>
+        </div>
+        <div class="row mono">
+          <span>session_id:</span><span id="session-id">none</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <strong>AI Insights</strong>
+        <div class="row">
+          <button id="btn-timeline">Timeline</button>
+          <button id="btn-root-cause">Root Cause Tree</button>
+        </div>
+        <div class="row">
+          <input id="question" style="flex:1" placeholder="What caused the outage?" />
+          <button id="btn-ask">Ask</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:14px;">
+      <strong>Action</strong>
+      <div class="row">
+        <select id="action">
+          <option>query_logs</option>
+          <option>query_metrics</option>
+          <option>query_traces</option>
+          <option>check_deployment</option>
+          <option>check_config</option>
+          <option>hypothesize</option>
+          <option>remediate</option>
+          <option>close_incident</option>
+        </select>
+        <button id="btn-step">Run Step</button>
+      </div>
+      <textarea id="params" class="mono"></textarea>
+    </div>
+
+    <div class="card" style="margin-top:14px;">
+      <strong>Output</strong>
+      <div id="output" class="mono"></div>
+    </div>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const out = $("output");
+    let sessionId = "";
+
+    const samples = {
+      query_logs: {"service":"order-service","pattern":"error"},
+      query_metrics: {"service":"order-service","metric":"cpu_pct","window_minutes":30},
+      query_traces: {"service":"order-service"},
+      check_deployment: {"service":"order-service"},
+      check_config: {"service":"order-service","key":"payment-handler"},
+      hypothesize: {"root_cause_service":"order-service","mechanism":"CPU saturation from missing index","confidence":0.9},
+      remediate: {"type":"rollback","target":"order-service","details":"Rollback bad deployment"},
+      close_incident: {"root_cause_service":"order-service","mechanism":"CPU saturation from missing index","remediation_taken":"rollback","blast_radius":["order-service","api-gateway"],"summary":"Closed after rollback"}
+    };
+
+    function log(title, data) {
+      const ts = new Date().toLocaleTimeString();
+      out.textContent = `[${ts}] ${title}\n${JSON.stringify(data, null, 2)}\n\n` + out.textContent;
+    }
+
+    async function callApi(path, init) {
+      const res = await fetch(path, init);
+      const txt = await res.text();
+      let data = txt;
+      try { data = JSON.parse(txt); } catch {}
+      if (!res.ok) {
+        throw new Error(typeof data === "string" ? data : JSON.stringify(data));
+      }
+      return data;
+    }
+
+    async function refreshHealth() {
+      try {
+        const h = await callApi("/health");
+        $("health").textContent = `${h.status} v${h.version}`;
+        $("health").className = "mono ok";
+      } catch (e) {
+        $("health").textContent = `error: ${e.message}`;
+        $("health").className = "mono warn";
+      }
+    }
+
+    async function loadTasks() {
+      try {
+        const tasks = await callApi("/tasks");
+        const sel = $("task");
+        sel.innerHTML = "";
+        for (const t of tasks) {
+          const opt = document.createElement("option");
+          opt.value = t.task_id;
+          opt.textContent = `${t.task_id} (${t.difficulty})`;
+          sel.appendChild(opt);
+        }
+        log("Loaded tasks", tasks);
+      } catch (e) {
+        log("Task load failed", {error: e.message});
+      }
+    }
+
+    async function resetSession() {
+      try {
+        const body = {task_id: $("task").value};
+        if ($("seed").value.trim() !== "") body.seed = Number($("seed").value.trim());
+        const data = await callApi("/reset", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify(body)
+        });
+        sessionId = data.session_id;
+        $("session-id").textContent = sessionId;
+        log("Session reset", data);
+      } catch (e) {
+        log("Reset failed", {error: e.message});
+      }
+    }
+
+    async function runStep() {
+      if (!sessionId) return log("Step blocked", {error: "Reset a session first"});
+      try {
+        const action = $("action").value;
+        const params = JSON.parse($("params").value);
+        const data = await callApi("/step", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({session_id: sessionId, action: {action, params}})
+        });
+        log(`Step: ${action}`, data);
+      } catch (e) {
+        log("Step failed", {error: e.message});
+      }
+    }
+
+    async function fetchTimeline() {
+      if (!sessionId) return log("Timeline blocked", {error: "Reset a session first"});
+      try {
+        const data = await callApi(`/timeline/${sessionId}`);
+        log("Timeline", data);
+      } catch (e) {
+        log("Timeline failed", {error: e.message});
+      }
+    }
+
+    async function fetchRootCause() {
+      if (!sessionId) return log("Root-cause blocked", {error: "Reset a session first"});
+      try {
+        const data = await callApi(`/root-cause-tree/${sessionId}`);
+        log("Root-cause tree", data);
+      } catch (e) {
+        log("Root-cause failed", {error: e.message});
+      }
+    }
+
+    async function askIncident() {
+      if (!sessionId) return log("Ask blocked", {error: "Reset a session first"});
+      const question = $("question").value.trim();
+      if (!question) return log("Ask blocked", {error: "Type a question first"});
+      try {
+        const data = await callApi("/ask_incident", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({session_id: sessionId, question})
+        });
+        log("Incident answer", data);
+      } catch (e) {
+        log("Ask failed", {error: e.message});
+      }
+    }
+
+    $("action").addEventListener("change", (e) => {
+      $("params").value = JSON.stringify(samples[e.target.value], null, 2);
+    });
+    $("btn-health").addEventListener("click", refreshHealth);
+    $("btn-tasks").addEventListener("click", loadTasks);
+    $("btn-reset").addEventListener("click", resetSession);
+    $("btn-step").addEventListener("click", runStep);
+    $("btn-timeline").addEventListener("click", fetchTimeline);
+    $("btn-root-cause").addEventListener("click", fetchRootCause);
+    $("btn-ask").addEventListener("click", askIncident);
+
+    $("params").value = JSON.stringify(samples.query_logs, null, 2);
+    refreshHealth();
+    loadTasks();
+  </script>
+</body>
+</html>

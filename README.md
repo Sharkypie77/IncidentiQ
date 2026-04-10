@@ -64,6 +64,16 @@ Why does this matter? Incident response is one of the highest-stakes activities 
 | `remediate` | `{type, target, details}` | Take a remediation action (rollback/restart/config_patch) |
 | `close_incident` | `{root_cause_service, mechanism, remediation_taken, blast_radius, summary}` | Close the incident and trigger final grading |
 
+## AI Analysis Endpoints
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /` | Browser UI console for running sessions and viewing AI insights |
+| `GET /api` | API index with available endpoints |
+| `GET /timeline/{session_id}` | Reconstructs an incident timeline from deployments, anomalies, and agent actions |
+| `GET /root-cause-tree/{session_id}` | Returns top root-cause candidates with probabilities and evidence |
+| `POST /ask_incident` | Lightweight natural-language incident Q&A over a session |
+
 ## Tasks
 
 | ID | Difficulty | Max Steps | Root Cause | Description |
@@ -122,7 +132,10 @@ pip install -r requirements.txt
 # 2. Start the server
 uvicorn server.app:app --host 0.0.0.0 --port 7860
 
-# 3. Run the demo — expert agent solves all 5 tasks with colored output
+# 3. Open the UI
+# http://localhost:7860
+
+# 4. Run the demo — expert agent solves all 5 tasks with colored output
 python run_demo.py
 ```
 
@@ -222,7 +235,7 @@ incidentiq/
 ├── inference.py            # LLM agent loop (all 5 tasks)
 ├── benchmark_results.json  # Full benchmark results (auto-generated)
 ├── server/
-│   └── app.py              # FastAPI server (10 routes, typed schemas)
+│   └── app.py              # FastAPI server (13 routes, typed schemas)
 ├── env/
 │   ├── environment.py      # Core RL environment
 │   ├── models.py           # Pydantic v2 models (20 schemas)
