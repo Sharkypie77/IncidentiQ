@@ -20,6 +20,18 @@ IncidentIQ is an OpenEnv-compliant reinforcement learning environment that simul
 
 Five tasks of increasing difficulty test progressively deeper reasoning — from straightforward CPU saturation to subtle silent data corruption, and even a task that deliberately inverts prior assumptions about which service is suspicious.
 
+## At a Glance
+
+| Item | Value |
+|------|-------|
+| Project type | Reinforcement learning environment |
+| Domain | SRE / production incident response |
+| Interaction style | Multi-step `reset -> step -> close_incident` |
+| Grading | Deterministic, programmatic, no LLM in grader |
+| Tasks | 5 (easy -> hard) |
+| UI | Built-in web console at `GET /` |
+| API index | `GET /api` |
+
 ## Environment Description
 
 IncidentIQ simulates a production microservice architecture consisting of five services: **api-gateway**, **order-service**, **auth-service**, **postgres**, and **analytics-service**. These services have realistic baseline performance characteristics and a defined dependency graph. When a failure occurs in one service, it propagates through the dependency graph, creating cascading degradation that mirrors real-world incident patterns.
@@ -121,6 +133,8 @@ Step rewards are clamped to **[-0.15, +0.10]**.
 
 Terminal rewards are clamped to **[0.0, 0.60]**.
 
+For benchmark compatibility, final task scores are clamped to the strict range **(0.01, 0.99)**.
+
 ## Setup and Usage
 
 ### Quick Demo (No LLM Required)
@@ -169,7 +183,7 @@ API_BASE_URL=https://integrate.api.nvidia.com/v1 HF_TOKEN=your-nvidia-api-key py
 ### Run Tests
 
 ```bash
-# 13 tests: 6 spec compliance + 7 grader accuracy
+# 18 tests: spec + grader + server feature coverage
 pytest tests/ -v
 ```
 
@@ -193,27 +207,27 @@ curl -X POST http://localhost:7860/step \
 
 | Task | Difficulty | Steps | Score | Reward | Result |
 |------|-----------|-------|-------|--------|--------|
-| `task1_cpu_saturation` | Easy | 7 | 100% | +0.89 | ✅ Solved |
-| `task2_cascading_failure` | Medium | 9 | 100% | +0.99 | ✅ Solved |
-| `task3_silent_corruption` | Hard | 8 | 100% | +0.92 | ✅ Solved |
-| `task4_db_connection_limit` | Medium | 7 | 100% | +0.94 | ✅ Solved |
-| `task5_memory_leak_analytics` | Medium-Hard | 7 | 100% | +0.89 | ✅ Solved |
-| **Average** | — | **7.6** | **100%** | — | **5/5** |
+| `task1_cpu_saturation` | Easy | 7 | 99% | +0.89 | ✅ Solved |
+| `task2_cascading_failure` | Medium | 9 | 99% | +0.99 | ✅ Solved |
+| `task3_silent_corruption` | Hard | 8 | 99% | +0.92 | ✅ Solved |
+| `task4_db_connection_limit` | Medium | 7 | 99% | +0.94 | ✅ Solved |
+| `task5_memory_leak_analytics` | Medium-Hard | 7 | 99% | +0.89 | ✅ Solved |
+| **Average** | — | **7.6** | **99%** | — | **5/5** |
 
 > The expert policy represents the **upper bound**. Task 3 (silent corruption) and Task 5 (analytics twist) are specifically designed to challenge LLM agents — they require resisting pattern-matching shortcuts and verifying root cause via config checks rather than trusting surface-level signals.
 
-### 🤖 LLM Agent Baseline (Llama 3.1 70B Instruct via NVIDIA NIM)
+### 🤖 Recent LLM Inference Run (NVIDIA NIM + rescue policy)
 
-| Task | Score | Success | Steps | Notes |
-|------|-------|---------|-------|-------|
-| `task1_cpu_saturation` | 100% | ✅ Yes | 7 | Accurately diagnosed missing DB index |
-| `task2_cascading_failure` | 100% | ✅ Yes | 9 | Successfully recognized redis pool exhaustion |
-| `task3_silent_corruption` | 100% | ✅ Yes | 8 | Detected missing idempotency key |
-| `task4_db_connection_limit` | 100% | ✅ Yes | 7 | Found reduced max_connections |
-| `task5_memory_leak_analytics` | 100% | ✅ Yes | 7 | Resisted red herrings and verified cache ttl |
-| **Average** | **100%** | **5/5** | **7.6** | — |
+| Task | Success | Steps |
+|------|---------|-------|
+| `task1_cpu_saturation` | ✅ Yes | 6 |
+| `task2_cascading_failure` | ✅ Yes | 6 |
+| `task3_silent_corruption` | ✅ Yes | 7 |
+| `task4_db_connection_limit` | ✅ Yes | 7 |
+| `task5_memory_leak_analytics` | ✅ Yes | 5 |
+| **Summary** | **5/5 solved** | **6.2 avg** |
 
-> **Achieved 100% via the `inference.py` loop** using `meta/llama-3.1-70b-instruct` running through NVIDIA NIM API. The model reliably identifies the true root causes and bypasses designed traps like the `analytics-service` red herring.
+> `inference.py` now enforces strict output formatting and includes a deterministic rescue mode so episodes finish reliably within the step budget.
 
 ## Environment Variables
 
@@ -221,8 +235,11 @@ curl -X POST http://localhost:7860/step \
 |----------|---------|-------------|
 | `API_BASE_URL` | `https://integrate.api.nvidia.com/v1` | LLM API base URL |
 | `MODEL_NAME` | `meta/llama-3.1-70b-instruct` | Model to use for inference |
-| `HF_TOKEN` | `""` | API key for the chosen provider |
+| `HF_TOKEN` | **Required** | API key for the chosen provider |
 | `ENV_URL` | `http://localhost:7860` | IncidentIQ server URL |
+| `STEP_DELAY_SECONDS` | `0` | Delay between inference steps |
+| `RESCUE_START_STEP` | `6` | Step index where deterministic rescue mode can begin |
+| `FORCE_CLOSE_STEP` | `9` | Step index where agent forces `close_incident` |
 
 ## File Structure
 
@@ -235,7 +252,8 @@ incidentiq/
 ├── inference.py            # LLM agent loop (all 5 tasks)
 ├── benchmark_results.json  # Full benchmark results (auto-generated)
 ├── server/
-│   └── app.py              # FastAPI server (13 routes, typed schemas)
+│   ├── app.py              # FastAPI server + UI/API routes
+│   └── index.html          # Web UI console served at /
 ├── env/
 │   ├── environment.py      # Core RL environment
 │   ├── models.py           # Pydantic v2 models (20 schemas)
@@ -251,6 +269,7 @@ incidentiq/
 │   ├── task4_db_connection_limit.py
 │   └── task5_memory_leak_analytics.py
 └── tests/
-    ├── test_spec.py         # 6 OpenEnv spec compliance tests
-    └── test_graders.py      # 7 grader accuracy tests
+    ├── test_spec.py            # OpenEnv spec compliance tests
+    ├── test_graders.py         # Grader accuracy tests
+    └── test_server_features.py # UI/API endpoint behavior tests
 ```
