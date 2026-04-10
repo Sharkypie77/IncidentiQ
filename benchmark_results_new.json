@@ -1,0 +1,242 @@
+
+[1m[96m══════════════════════════════════════════════════════════════════════[0m
+[1m[97m  IncidentIQ — Production Incident Response RL Environment[0m
+[1m[96m══════════════════════════════════════════════════════════════════════[0m
+
+  [1m[97mWhat is IncidentIQ?[0m
+  [2mA benchmark where AI agents act as on-call SREs, diagnosing and fixing
+  production incidents across a simulated microservice architecture — with
+  deterministic grading, red-herring hardening, and no LLM in the loop.[0m
+
+  [1mRunning:[0m Rule-based policy on all 5 tasks (no LLM required)
+  [1mServer:[0m http://localhost:7860
+
+  [92m●[0m Server healthy (v1.1.0)
+
+[1m[96m══════════════════════════════════════════════════════════════════════[0m
+[1m[97m  Task 1: CPU Saturation  [easy][0m
+[1m[96m══════════════════════════════════════════════════════════════════════[0m
+
+  [1mAlert:[0m [93mALERT: order-service p99 latency exceeded 4000ms threshold. API gateway reporting elevated 503 error rate. analytics-service memory utilisation elevated.[0m
+  [1mServices:[0m api-gateway, order-service, auth-service, postgres, analytics-service
+  [1mMax steps:[0m 15
+
+[1m[94m── Initial Service Health ──[0m
+    [93m●[0m api-gateway          [93mdegraded  [0m cpu= 21.6%  mem= 27.5%  err=0.0029  p99=152ms
+    [93m●[0m order-service        [93mdegraded  [0m cpu= 84.0%  mem= 40.7%  err=0.0092  p99=3389ms
+    [92m●[0m auth-service         [92mhealthy   [0m cpu= 15.0%  mem= 25.0%  err=0.0010  p99=25ms
+    [92m●[0m postgres             [92mhealthy   [0m cpu= 25.0%  mem= 60.0%  err=0.0000  p99=18ms
+    [92m●[0m analytics-service    [92mhealthy   [0m cpu= 40.0%  mem= 75.0%  err=0.0050  p99=1040ms
+
+[1m[94m── Agent Investigation ──[0m
+  [2m  Step │ Action             │ Target               │ Reasoning[0m
+  [2m───────┼────────────────────┼──────────────────────┼───────────────────────────────[0m
+  [1m[97mStep  1[0m │ [93mquery_metrics     [0m │ [96morder-service       [0m │ [2mQuery metrics for the most degraded service (highest p99 latency)[0m
+         │ [92m+0.080[0m │ [2mqueried metrics of root-cause service (order-servi[0m
+  [1m[97mStep  2[0m │ [93mquery_logs        [0m │ [96morder-service       [0m │ [2mCheck error logs on the same degraded service[0m
+         │ [92m+0.080[0m │ [2mqueried logs of root-cause service (order-service)[0m
+  [1m[97mStep  3[0m │ [93mcheck_deployment  [0m │ [96morder-service       [0m │ [2mInspect recent deployment changes on that service[0m
+         │ [92m+0.030[0m │ [2mchecked deployments of root-cause service (order-s[0m
+  [1m[97mStep  4[0m │ [93mcheck_config      [0m │ [96morder-service       [0m │ [2mInspect critical config key on that service[0m
+         │ [92m+0.030[0m │ [2mchecked config of root-cause service (order-servic[0m
+  [1m[97mStep  5[0m │ [93mhypothesize       [0m │ [96m—                   [0m │ [2mCreate root-cause hypothesis from gathered evidence[0m
+         │ [92m+0.100[0m │ [2mhypothesis targets the correct root-cause service[0m
+  [1m[97mStep  6[0m │ [93mremediate         [0m │ [96morder-service       [0m │ [2mAttempt remediation on the suspected root-cause service[0m
+         │ [2m 0.000[0m │ [2mremediation 'config_patch' on order-service[0m
+  [1m[97mStep  7[0m │ [93mclose_incident    [0m │ [96m—                   [0m │ [2mClose incident after remediation[0m
+         │ [92m+0.310[0m │ [2mincident closed — terminal reward applies; TERMINA[0m
+
+[1m[94m── Result ──[0m
+  [42m[97m ✓ SOLVED [0m [1mScore: 60.00%[0m │ Steps: 7 │ Total reward: 0.6300
+
+  [2mGround Truth:[0m
+    Root cause: [1morder-service[0m
+    Mechanism:  missing_index
+    Fix:        rollback
+
+[1m[96m══════════════════════════════════════════════════════════════════════[0m
+[1m[97m  Task 2: Cascading Failure  [medium][0m
+[1m[96m══════════════════════════════════════════════════════════════════════[0m
+
+  [1mAlert:[0m [93mALERT: API gateway 503 error rate exceeded 5% threshold. auth-service response times spiking. Multiple services showing elevated latency.[0m
+  [1mServices:[0m api-gateway, order-service, auth-service, postgres, analytics-service
+  [1mMax steps:[0m 20
+
+[1m[94m── Initial Service Health ──[0m
+    [93m●[0m api-gateway          [93mdegraded  [0m cpu= 21.6%  mem= 27.5%  err=0.0030  p99=158ms
+    [92m●[0m order-service        [92mhealthy   [0m cpu= 35.0%  mem= 45.0%  err=0.0050  p99=132ms
+    [93m●[0m auth-service         [93mdegraded  [0m cpu= 15.4%  mem= 22.6%  err=0.0152  p99=449ms
+    [92m●[0m postgres             [92mhealthy   [0m cpu= 25.0%  mem= 60.0%  err=0.0000  p99=18ms
+    [92m●[0m analytics-service    [92mhealthy   [0m cpu= 40.0%  mem= 73.0%  err=0.0050  p99=960ms
+
+[1m[94m── Agent Investigation ──[0m
+  [2m  Step │ Action             │ Target               │ Reasoning[0m
+  [2m───────┼────────────────────┼──────────────────────┼───────────────────────────────[0m
+  [1m[97mStep  1[0m │ [93mquery_metrics     [0m │ [96manalytics-service   [0m │ [2mQuery metrics for the most degraded service (highest p99 latency)[0m
+         │ [91m-0.080[0m │ [2mqueried metrics of red-herring service (analytics-[0m
+  [1m[97mStep  2[0m │ [93mquery_logs        [0m │ [96manalytics-service   [0m │ [2mCheck error logs on the same degraded service[0m
+         │ [91m-0.080[0m │ [2mqueried logs of red-herring service (analytics-ser[0m
+  [1m[97mStep  3[0m │ [93mcheck_deployment  [0m │ [96manalytics-service   [0m │ [2mInspect recent deployment changes on that service[0m
+         │ [91m-0.080[0m │ [2mchecked deployments of red-herring service (analyt[0m
+  [1m[97mStep  4[0m │ [93mcheck_config      [0m │ [96manalytics-service   [0m │ [2mInspect critical config key on that service[0m
+         │ [91m-0.080[0m │ [2mchecked config of red-herring service (analytics-s[0m
+  [1m[97mStep  5[0m │ [93mhypothesize       [0m │ [96m—                   [0m │ [2mCreate root-cause hypothesis from gathered evidence[0m
+         │ [91m-0.080[0m │ [2mhypothesis targets a red-herring service[0m
+  [1m[97mStep  6[0m │ [93mremediate         [0m │ [96manalytics-service   [0m │ [2mAttempt remediation on the suspected root-cause service[0m
+         │ [91m-0.080[0m │ [2mremediation targets a red-herring service (analyti[0m
+  [1m[97mStep  7[0m │ [93mclose_incident    [0m │ [96m—                   [0m │ [2mClose incident after remediation[0m
+         │ [92m+0.070[0m │ [2mincident closed — terminal reward applies; TERMINA[0m
+
+[1m[94m── Result ──[0m
+  [41m[97m ✗ FAILED [0m [1mScore: 0.00%[0m │ Steps: 7 │ Total reward: -0.4100
+
+  [2mGround Truth:[0m
+    Root cause: [1mauth-service[0m
+    Mechanism:  redis_pool_exhaustion
+    Fix:        restart
+
+[1m[96m══════════════════════════════════════════════════════════════════════[0m
+[1m[97m  Task 3: Silent Corruption  [hard][0m
+[1m[96m══════════════════════════════════════════════════════════════════════[0m
+
+  [1mAlert:[0m [93mBilling reconciliation discrepancy detected: 3.1% transaction mismatch. No service outage reported. All services report healthy status.[0m
+  [1mServices:[0m api-gateway, order-service, auth-service, postgres, analytics-service
+  [1mMax steps:[0m 30
+
+[1m[94m── Initial Service Health ──[0m
+    [92m●[0m api-gateway          [92mhealthy   [0m cpu= 21.6%  mem= 27.5%  err=0.0016  p99=80ms
+    [92m●[0m order-service        [92mhealthy   [0m cpu= 36.0%  mem= 40.7%  err=0.0115  p99=120ms
+    [92m●[0m auth-service         [92mhealthy   [0m cpu= 15.0%  mem= 25.0%  err=0.0010  p99=25ms
+    [92m●[0m postgres             [92mhealthy   [0m cpu= 25.0%  mem= 60.0%  err=0.0000  p99=21ms
+    [92m●[0m analytics-service    [92mhealthy   [0m cpu= 40.0%  mem= 70.0%  err=0.0050  p99=800ms
+
+[1m[94m── Agent Investigation ──[0m
+  [2m  Step │ Action             │ Target               │ Reasoning[0m
+  [2m───────┼────────────────────┼──────────────────────┼───────────────────────────────[0m
+  [1m[97mStep  1[0m │ [93mquery_metrics     [0m │ [96manalytics-service   [0m │ [2mQuery metrics for the most degraded service (highest p99 latency)[0m
+         │ [91m-0.080[0m │ [2mqueried metrics of red-herring service (analytics-[0m
+  [1m[97mStep  2[0m │ [93mquery_logs        [0m │ [96manalytics-service   [0m │ [2mCheck error logs on the same degraded service[0m
+         │ [91m-0.080[0m │ [2mqueried logs of red-herring service (analytics-ser[0m
+  [1m[97mStep  3[0m │ [93mcheck_deployment  [0m │ [96manalytics-service   [0m │ [2mInspect recent deployment changes on that service[0m
+         │ [91m-0.080[0m │ [2mchecked deployments of red-herring service (analyt[0m
+  [1m[97mStep  4[0m │ [93mcheck_config      [0m │ [96manalytics-service   [0m │ [2mInspect critical config key on that service[0m
+         │ [91m-0.080[0m │ [2mchecked config of red-herring service (analytics-s[0m
+  [1m[97mStep  5[0m │ [93mhypothesize       [0m │ [96m—                   [0m │ [2mCreate root-cause hypothesis from gathered evidence[0m
+         │ [91m-0.080[0m │ [2mhypothesis targets a red-herring service[0m
+  [1m[97mStep  6[0m │ [93mremediate         [0m │ [96manalytics-service   [0m │ [2mAttempt remediation on the suspected root-cause service[0m
+         │ [91m-0.080[0m │ [2mremediation targets a red-herring service (analyti[0m
+  [1m[97mStep  7[0m │ [93mclose_incident    [0m │ [96m—                   [0m │ [2mClose incident after remediation[0m
+         │ [92m+0.230[0m │ [2mincident closed — terminal reward applies; TERMINA[0m
+
+[1m[94m── Result ──[0m
+  [41m[97m ✗ FAILED [0m [1mScore: 0.00%[0m │ Steps: 7 │ Total reward: -0.2500
+
+  [2mGround Truth:[0m
+    Root cause: [1morder-service[0m
+    Mechanism:  duplicate_webhook_idempotency
+    Fix:        config_patch
+
+[1m[96m══════════════════════════════════════════════════════════════════════[0m
+[1m[97m  Task 4: DB Connection Limit  [medium][0m
+[1m[96m══════════════════════════════════════════════════════════════════════[0m
+
+  [1mAlert:[0m [93mALERT: order-service reporting database connection timeouts. postgres active_connections at capacity. API gateway 503 error rate rising. analytics-service memory utilisation elevated.[0m
+  [1mServices:[0m api-gateway, order-service, auth-service, postgres, analytics-service
+  [1mMax steps:[0m 20
+
+[1m[94m── Initial Service Health ──[0m
+    [92m●[0m api-gateway          [92mhealthy   [0m cpu= 18.1%  mem= 28.2%  err=0.0017  p99=92ms
+    [93m●[0m order-service        [93mdegraded  [0m cpu= 37.8%  mem= 41.3%  err=0.0055  p99=387ms
+    [92m●[0m auth-service         [92mhealthy   [0m cpu= 15.0%  mem= 25.0%  err=0.0010  p99=25ms
+    [93m●[0m postgres             [93mdegraded  [0m cpu= 25.7%  mem= 54.3%  err=0.0000  p99=289ms
+    [92m●[0m analytics-service    [92mhealthy   [0m cpu= 40.0%  mem= 75.0%  err=0.0050  p99=1000ms
+
+[1m[94m── Agent Investigation ──[0m
+  [2m  Step │ Action             │ Target               │ Reasoning[0m
+  [2m───────┼────────────────────┼──────────────────────┼───────────────────────────────[0m
+  [1m[97mStep  1[0m │ [93mquery_metrics     [0m │ [96manalytics-service   [0m │ [2mQuery metrics for the most degraded service (highest p99 latency)[0m
+         │ [91m-0.080[0m │ [2mqueried metrics of red-herring service (analytics-[0m
+  [1m[97mStep  2[0m │ [93mquery_logs        [0m │ [96manalytics-service   [0m │ [2mCheck error logs on the same degraded service[0m
+         │ [91m-0.080[0m │ [2mqueried logs of red-herring service (analytics-ser[0m
+  [1m[97mStep  3[0m │ [93mcheck_deployment  [0m │ [96manalytics-service   [0m │ [2mInspect recent deployment changes on that service[0m
+         │ [91m-0.080[0m │ [2mchecked deployments of red-herring service (analyt[0m
+  [1m[97mStep  4[0m │ [93mcheck_config      [0m │ [96manalytics-service   [0m │ [2mInspect critical config key on that service[0m
+         │ [91m-0.080[0m │ [2mchecked config of red-herring service (analytics-s[0m
+  [1m[97mStep  5[0m │ [93mhypothesize       [0m │ [96m—                   [0m │ [2mCreate root-cause hypothesis from gathered evidence[0m
+         │ [91m-0.080[0m │ [2mhypothesis targets a red-herring service[0m
+  [1m[97mStep  6[0m │ [93mremediate         [0m │ [96manalytics-service   [0m │ [2mAttempt remediation on the suspected root-cause service[0m
+         │ [91m-0.080[0m │ [2mremediation targets a red-herring service (analyti[0m
+  [1m[97mStep  7[0m │ [93mclose_incident    [0m │ [96m—                   [0m │ [2mClose incident after remediation[0m
+         │ [92m+0.220[0m │ [2mincident closed — terminal reward applies; TERMINA[0m
+
+[1m[94m── Result ──[0m
+  [41m[97m ✗ FAILED [0m [1mScore: 0.00%[0m │ Steps: 7 │ Total reward: -0.2600
+
+  [2mGround Truth:[0m
+    Root cause: [1mpostgres[0m
+    Mechanism:  max_connections_reduced
+    Fix:        config_patch
+
+[1m[96m══════════════════════════════════════════════════════════════════════[0m
+[1m[97m  Task 5: Memory Leak (Twist)  [medium-hard][0m
+[1m[96m══════════════════════════════════════════════════════════════════════[0m
+
+  [1mAlert:[0m [93mALERT: analytics-service OOM killed twice in 24h. Container memory at 98%. Pipeline processing stalled. postgres p99 latency elevated (likely routine maintenance). All other services operating normally.[0m
+  [1mServices:[0m api-gateway, order-service, auth-service, postgres, analytics-service
+  [1mMax steps:[0m 25
+
+[1m[94m── Initial Service Health ──[0m
+    [92m●[0m api-gateway          [92mhealthy   [0m cpu= 20.0%  mem= 30.0%  err=0.0010  p99=45ms
+    [92m●[0m order-service        [92mhealthy   [0m cpu= 35.0%  mem= 45.0%  err=0.0020  p99=120ms
+    [92m●[0m auth-service         [92mhealthy   [0m cpu= 15.0%  mem= 25.0%  err=0.0010  p99=25ms
+    [92m●[0m postgres             [92mhealthy   [0m cpu= 35.0%  mem= 60.0%  err=0.0000  p99=27ms
+    [93m●[0m analytics-service    [93mdegraded  [0m cpu= 41.1%  mem= 80.5%  err=0.0052  p99=2683ms
+
+[1m[94m── Agent Investigation ──[0m
+  [2m  Step │ Action             │ Target               │ Reasoning[0m
+  [2m───────┼────────────────────┼──────────────────────┼───────────────────────────────[0m
+  [1m[97mStep  1[0m │ [93mquery_metrics     [0m │ [96manalytics-service   [0m │ [2mQuery metrics for the most degraded service (highest p99 latency)[0m
+         │ [92m+0.080[0m │ [2mqueried metrics of root-cause service (analytics-s[0m
+  [1m[97mStep  2[0m │ [93mquery_logs        [0m │ [96manalytics-service   [0m │ [2mCheck error logs on the same degraded service[0m
+         │ [92m+0.080[0m │ [2mqueried logs of root-cause service (analytics-serv[0m
+  [1m[97mStep  3[0m │ [93mcheck_deployment  [0m │ [96manalytics-service   [0m │ [2mInspect recent deployment changes on that service[0m
+         │ [92m+0.030[0m │ [2mchecked deployments of root-cause service (analyti[0m
+  [1m[97mStep  4[0m │ [93mcheck_config      [0m │ [96manalytics-service   [0m │ [2mInspect critical config key on that service[0m
+         │ [92m+0.030[0m │ [2mchecked config of root-cause service (analytics-se[0m
+  [1m[97mStep  5[0m │ [93mhypothesize       [0m │ [96m—                   [0m │ [2mCreate root-cause hypothesis from gathered evidence[0m
+         │ [92m+0.100[0m │ [2mhypothesis targets the correct root-cause service[0m
+  [1m[97mStep  6[0m │ [93mremediate         [0m │ [96manalytics-service   [0m │ [2mAttempt remediation on the suspected root-cause service[0m
+         │ [2m 0.000[0m │ [2mremediation 'config_patch' on analytics-service[0m
+  [1m[97mStep  7[0m │ [93mclose_incident    [0m │ [96m—                   [0m │ [2mClose incident after remediation[0m
+         │ [92m+0.526[0m │ [2mincident closed — terminal reward applies; TERMINA[0m
+
+[1m[94m── Result ──[0m
+  [42m[97m ✓ SOLVED [0m [1mScore: 80.57%[0m │ Steps: 7 │ Total reward: 0.8460
+
+  [2mGround Truth:[0m
+    Root cause: [1manalytics-service[0m
+    Mechanism:  unbounded_batch_cache
+    Fix:        config_patch
+
+[1m[96m══════════════════════════════════════════════════════════════════════[0m
+[1m[97m  BENCHMARK SUMMARY[0m
+[1m[96m══════════════════════════════════════════════════════════════════════[0m
+
+  [1mTask                                Diff         Steps    Score    Reward     Result[0m
+  ─────────────────────────────────── ──────────── ───── ──────── ───────── ──────────
+  Task 1: CPU Saturation              easy             7 [92m  60.0%[0m  +0.6300  [92m✓ PASS[0m
+  Task 2: Cascading Failure           medium           7 [91m   0.0%[0m  -0.4100  [91m✗ FAIL[0m
+  Task 3: Silent Corruption           hard             7 [91m   0.0%[0m  -0.2500  [91m✗ FAIL[0m
+  Task 4: DB Connection Limit         medium           7 [91m   0.0%[0m  -0.2600  [91m✗ FAIL[0m
+  Task 5: Memory Leak (Twist)         medium-hard      7 [92m  80.6%[0m  +0.8460  [92m✓ PASS[0m
+  ─────────────────────────────────── ──────────── ───── ──────── ───────── ──────────
+  [1mAVERAGE                             —              7.0 [93m  28.1%[0m  [1m2/5 solved[0m
+
+  [1mKey Metrics:[0m
+    Success Rate:   [1m2/5[0m (40%)
+    Average Score:  [1m28.1%[0m
+    Average Steps:  [1m7.0[0m
+    Total Steps:    [1m35[0m
+
+  [2mResults saved to benchmark_results.json[0m
+

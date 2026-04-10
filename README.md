@@ -27,7 +27,7 @@ Rewards are deterministic and grading is fully programmatic (no LLM in the grade
 | Difficulty structure | Easy, Medium, Hard, Twist |
 | Built-in UI | `GET /` |
 | API index | `GET /api` |
-| Score bounds | Strictly clamped to `(0.01, 0.99)` |
+| Score bounds | `[0.0, 1.0]` |
 ## What This Project Is
 | Question | Answer |
 |---|---|
@@ -134,27 +134,26 @@ Terminal rewards are clamped to `[0.0, 0.60]`.
 |---|---|
 | No randomness in grader | Same episode history always yields same score |
 | No LLM in grading loop | Reproducible and audit-friendly evaluation |
-| Final score clamp | Strictly `(0.01, 0.99)` |
-This strict score range is required by benchmark validators that reject `0.0` and `1.0`.
+| Final score clamp | `[0.0, 1.0]` |
 ## Reward System Validation Snapshot
 | Factor | Current value | Source |
 |---|---|---|
 | Step reward clamp | `[-0.15, +0.10]` | `env/reward.py` |
-| Terminal reward clamp | `[0.001, 0.599]` | `env/reward.py` |
-| Final task score clamp | `(0.01, 0.99)` | task graders + `run_demo.py` + `inference.py` |
-| Benchmark success rate | `100% (5/5)` | `benchmark_results.json` |
-| Average benchmark score | `0.8724` | `benchmark_results.json` |
-| Average benchmark steps | `7.6` | `benchmark_results.json` |
+| Terminal reward clamp | `[0.0, 0.60]` | `env/reward.py` |
+| Final task score clamp | `[0.0, 1.0]` | task graders + `run_demo.py` + `inference.py` |
+| Benchmark success rate | `40% (2/5)` | `benchmark_results.json` |
+| Average benchmark score | `0.2811` | `benchmark_results.json` |
+| Average benchmark steps | `7.0` | `benchmark_results.json` |
 | Reward/score tests | `3 passed` | `test_step_reward_range`, `test_graders_return_valid_float`, `test_perfect_agent_scores_high` |
-### Per-task Reward Snapshot (Expert Policy)
+### Per-task Reward Snapshot (Rule-based Policy)
 | Task | Steps | Total Reward | Score |
 |---|---:|---:|---:|
-| `task1_cpu_saturation` | 7 | 0.889 | 0.8467 |
-| `task2_cascading_failure` | 9 | 0.989 | 0.8991 |
-| `task3_silent_corruption` | 8 | 0.919 | 0.8752 |
-| `task4_db_connection_limit` | 7 | 0.939 | 0.8943 |
-| `task5_memory_leak_analytics` | 7 | 0.889 | 0.8467 |
-| **Average** | **7.6** | **0.925** | **0.8724** |
+| `task1_cpu_saturation` | 7 | 0.6300 | 0.6000 |
+| `task2_cascading_failure` | 7 | -0.4100 | 0.0000 |
+| `task3_silent_corruption` | 7 | -0.2500 | 0.0000 |
+| `task4_db_connection_limit` | 7 | -0.2600 | 0.0000 |
+| `task5_memory_leak_analytics` | 7 | 0.8460 | 0.8057 |
+| **Average** | **7.0** | **0.1112** | **0.2811** |
 ## API Reference
 | Method | Path | Purpose |
 |---|---|---|
@@ -205,8 +204,6 @@ The UI supports:
 | `HF_TOKEN` | — | Yes | Provider API key |
 | `ENV_URL` | `http://localhost:7860` | No | Environment server URL |
 | `STEP_DELAY_SECONDS` | `0` | No | Delay between inference steps |
-| `RESCUE_START_STEP` | `6` | No | Inference rescue mode start |
-| `FORCE_CLOSE_STEP` | `9` | No | Forced close step |
 ### Quick Local Run
 ```bash
 pip install -r requirements.txt
@@ -247,7 +244,7 @@ curl https://Zewx77-incidentiq.hf.space/tasks
 | `env/reward.py` | Deterministic reward calculator |
 | `tasks/*.py` | Task definitions and grading logic |
 | `inference.py` | LLM inference loop |
-| `run_demo.py` | Deterministic expert run |
+| `run_demo.py` | Deterministic rule-based benchmark run |
 | `tests/` | Spec, grader, and server tests |
 ## Submission Strengths
 | Strength | Why it matters |
@@ -260,8 +257,8 @@ curl https://Zewx77-incidentiq.hf.space/tasks
 ## Recent Fixes
 | Fix | Reason |
 |---|---|
-| Strict score clamp to `(0.01, 0.99)` | Prevent validator rejection |
+| Score clamp updated to `[0.0, 1.0]` | Matches OpenEnv score bounds spec |
 | Inference output normalization | Ensures parser-safe `[START]/[STEP]/[END]` lines |
-| Rescue mode in inference | Improves completion reliability under drift |
+| Removed rescue/forced-close flow | Agent decisions now drive close behavior |
 | Root UI + `/api` split | Better user experience with preserved API index |
 | Timeline/root-cause/Q&A endpoints | Better explainability and demo value |

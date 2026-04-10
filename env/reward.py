@@ -222,7 +222,6 @@ class RewardCalculator:
         total += eff_bonus
         reasons.append(f"+{eff_bonus:.4f} efficiency bonus ({state.step_count}/{state.max_steps} steps)")
 
-        # Clamp to (0.0, 0.60) — strictly positive so task scores
-        # stay inside the open interval (0, 1) required by the validator.
-        total = max(0.001, min(0.599, total))
+        # Clamp close evaluation reward to [0.0, 0.60].
+        total = max(0.0, min(0.60, total))
         return (total, "; ".join(reasons))

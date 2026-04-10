@@ -9,9 +9,9 @@ Usage:
     # Then run:
     python run_demo.py
 
-This script runs a deterministic expert agent through all 5 tasks,
+This script runs a deterministic rule-based agent through all 5 tasks,
 showing step-by-step investigation, decisions, and final scoring.
-No LLM or API key required — uses a built-in expert policy.
+No LLM or API key required.
 """
 
 from __future__ import annotations
@@ -19,11 +19,16 @@ from __future__ import annotations
 import json
 import sys
 import time
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List
 
 import httpx
 
 ENV_URL = "http://localhost:7860"
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8")
 
 # ── Colors ──────────────────────────────────────────────────────────────────
 
@@ -69,97 +74,87 @@ def result_badge(success: bool) -> str:
     return f"{C.BG_RED}{C.WHITE} ✗ FAILED {C.RESET}"
 
 
-# ── Expert Policies ─────────────────────────────────────────────────────────
-# Each task has a scripted optimal sequence mimicking expert SRE reasoning.
+# ── Rule-based policy ────────────────────────────────────────────────────────
 
-EXPERT_POLICIES: Dict[str, List[Tuple[Dict, str]]] = {
-    "task1_cpu_saturation": [
-        ({"action": "query_metrics", "params": {"service": "order-service", "metric": "cpu_pct", "window_minutes": 30}},
-         "Alert mentions order-service → check CPU metrics first"),
-        ({"action": "query_logs", "params": {"service": "order-service", "pattern": "cpu"}},
-         "CPU is high → look for CPU-related errors in logs"),
-        ({"action": "query_traces", "params": {"service": "order-service"}},
-         "Check request traces for slow spans"),
-        ({"action": "check_deployment", "params": {"service": "order-service"}},
-         "Check if a recent deployment caused this"),
-        ({"action": "hypothesize", "params": {"root_cause_service": "order-service", "mechanism": "CPU saturation from missing database index", "confidence": 0.85}},
-         "Evidence points to order-service CPU + deployment"),
-        ({"action": "remediate", "params": {"type": "rollback", "target": "order-service", "details": "Roll back to previous version with DB index"}},
-         "Rollback the bad deployment"),
-        ({"action": "close_incident", "params": {"root_cause_service": "order-service", "mechanism": "CPU saturation from missing database index after deployment", "remediation_taken": "rollback", "blast_radius": ["order-service", "api-gateway"], "summary": "order-service deployed without DB index causing CPU saturation. Rolled back."}},
-         "Root cause confirmed → close incident"),
-    ],
-    "task2_cascading_failure": [
-        ({"action": "query_logs", "params": {"service": "api-gateway", "pattern": "503"}},
-         "Alert mentions 503s → check API gateway logs"),
-        ({"action": "query_metrics", "params": {"service": "api-gateway", "metric": "error_rate", "window_minutes": 30}},
-         "Confirm error rate spike on api-gateway"),
-        ({"action": "query_traces", "params": {"service": "api-gateway"}},
-         "Trace requests to find upstream failure"),
-        ({"action": "query_logs", "params": {"service": "auth-service", "pattern": "redis"}},
-         "Traces show auth-service failing → check Redis connection issues"),
-        ({"action": "query_metrics", "params": {"service": "auth-service", "metric": "active_connections", "window_minutes": 30}},
-         "Check auth-service connection pool saturation"),
-        ({"action": "check_config", "params": {"service": "auth-service", "key": "redis_pool_size"}},
-         "Verify Redis pool configuration"),
-        ({"action": "hypothesize", "params": {"root_cause_service": "auth-service", "mechanism": "Redis connection pool exhaustion cascading to API gateway", "confidence": 0.9}},
-         "Redis pool exhausted → cascading 503s"),
-        ({"action": "remediate", "params": {"type": "restart", "target": "auth-service", "details": "Restart to clear exhausted Redis connection pool"}},
-         "Restart auth-service to reset pool"),
-        ({"action": "close_incident", "params": {"root_cause_service": "auth-service", "mechanism": "Redis pool exhaustion cascading to api-gateway 503s", "remediation_taken": "restart", "blast_radius": ["auth-service", "api-gateway"], "summary": "auth-service Redis pool exhausted, cascading 503s to api-gateway. Restarted auth-service."}},
-         "Cascade root cause = auth-service → close"),
-    ],
-    "task3_silent_corruption": [
-        ({"action": "query_logs", "params": {"service": "order-service", "pattern": "payment"}},
-         "Alert mentions payment issues → check order-service logs"),
-        ({"action": "query_metrics", "params": {"service": "order-service", "metric": "error_rate", "window_minutes": 30}},
-         "Check if error rate reflects corruption"),
-        ({"action": "query_logs", "params": {"service": "order-service", "pattern": "duplicate"}},
-         "Look for duplicate transaction evidence"),
-        ({"action": "check_deployment", "params": {"service": "order-service"}},
-         "Check deployments — but issue may predate them"),
-        ({"action": "check_config", "params": {"service": "order-service", "key": "payment-handler"}},
-         "Silent issue? Check payment config — may be a config change"),
-        ({"action": "hypothesize", "params": {"root_cause_service": "order-service", "mechanism": "Payment race condition from config change causing double-charges", "confidence": 0.85}},
-         "Config changed 6 days ago → race condition"),
-        ({"action": "remediate", "params": {"type": "config_patch", "target": "order-service", "details": "Restore payment handler to use idempotency keys"}},
-         "Patch config to re-enable safety checks"),
-        ({"action": "close_incident", "params": {"root_cause_service": "order-service", "mechanism": "Payment race condition from config change disabling idempotency", "remediation_taken": "config_patch", "blast_radius": ["order-service"], "summary": "Config change 6 days ago disabled payment idempotency, causing 3% double-charges. Patched config."}},
-         "Silent corruption resolved → close"),
-    ],
-    "task4_db_connection_limit": [
-        ({"action": "query_logs", "params": {"service": "postgres", "pattern": "connection"}},
-         "Alert mentions DB issues → check postgres connection logs"),
-        ({"action": "query_metrics", "params": {"service": "postgres", "metric": "active_connections", "window_minutes": 30}},
-         "Check connection pool usage on postgres"),
-        ({"action": "query_logs", "params": {"service": "order-service", "pattern": "connection"}},
-         "Check if order-service is failing due to DB connections"),
-        ({"action": "check_config", "params": {"service": "postgres", "key": "max_connections"}},
-         "Config may have reduced max_connections"),
-        ({"action": "hypothesize", "params": {"root_cause_service": "postgres", "mechanism": "max_connections reduced from 100 to 20 causing pool saturation", "confidence": 0.9}},
-         "Config confirms: max_connections cut to 20"),
-        ({"action": "remediate", "params": {"type": "config_patch", "target": "postgres", "details": "Restore max_connections from 20 back to 100"}},
-         "Patch config to restore connection limit"),
-        ({"action": "close_incident", "params": {"root_cause_service": "postgres", "mechanism": "max_connections reduced from 100 to 20 by config change", "remediation_taken": "config_patch", "blast_radius": ["postgres", "order-service", "api-gateway"], "summary": "postgres max_connections reduced to 20 by config change 2 days ago. Restored to 100."}},
-         "DB connection limit restored → close"),
-    ],
-    "task5_memory_leak_analytics": [
-        ({"action": "query_metrics", "params": {"service": "analytics-service", "metric": "cpu_pct", "window_minutes": 30}},
-         "Alert mentions analytics → DON'T dismiss it this time"),
-        ({"action": "query_logs", "params": {"service": "analytics-service", "pattern": "memory"}},
-         "Check for memory-related errors in analytics"),
-        ({"action": "query_metrics", "params": {"service": "analytics-service", "metric": "active_connections", "window_minutes": 30}},
-         "Check resource utilization trends"),
-        ({"action": "check_config", "params": {"service": "analytics-service", "key": "batch_cache_ttl"}},
-         "Check if cache TTL was misconfigured"),
-        ({"action": "hypothesize", "params": {"root_cause_service": "analytics-service", "mechanism": "Unbounded batch cache causing memory leak", "confidence": 0.85}},
-         "Cache TTL disabled → unbounded memory growth"),
-        ({"action": "remediate", "params": {"type": "config_patch", "target": "analytics-service", "details": "Restore batch_cache_ttl to enable cache expiration"}},
-         "Re-enable cache expiration"),
-        ({"action": "close_incident", "params": {"root_cause_service": "analytics-service", "mechanism": "Unbounded batch cache memory leak from disabled TTL", "remediation_taken": "config_patch", "blast_radius": ["analytics-service"], "summary": "analytics-service batch_cache_ttl was disabled, causing unbounded memory growth. Restored TTL config."}},
-         "Memory leak fixed → close"),
-    ],
-}
+def pick_most_degraded_service(observation: Dict[str, Any]) -> str:
+    service_health = observation.get("service_health", {})
+    if not service_health:
+        return "api-gateway"
+    return max(
+        service_health.items(),
+        key=lambda item: (
+            float(item[1].get("p99_ms", 0.0)),
+            float(item[1].get("error_rate", 0.0)),
+            float(item[1].get("cpu_pct", 0.0)),
+        ),
+    )[0]
+
+
+def build_action_for_step(step_num: int, observation: Dict[str, Any], anchor_service: str) -> tuple[Dict[str, Any], str]:
+    affected = [
+        name
+        for name, svc in observation.get("service_health", {}).items()
+        if svc.get("status") != "healthy" or float(svc.get("error_rate", 0.0)) > 0.0
+    ] or [anchor_service]
+    mechanism = f"performance degradation centered on {anchor_service} from service-level instability"
+
+    if step_num == 1:
+        return (
+            {"action": "query_metrics", "params": {"service": anchor_service, "metric": "p99_ms", "window_minutes": 30}},
+            "Query metrics for the most degraded service (highest p99 latency)",
+        )
+    if step_num == 2:
+        return (
+            {"action": "query_logs", "params": {"service": anchor_service, "pattern": "error"}},
+            "Check error logs on the same degraded service",
+        )
+    if step_num == 3:
+        return (
+            {"action": "check_deployment", "params": {"service": anchor_service}},
+            "Inspect recent deployment changes on that service",
+        )
+    if step_num == 4:
+        return (
+            {"action": "check_config", "params": {"service": anchor_service, "key": "payment-handler"}},
+            "Inspect critical config key on that service",
+        )
+    if step_num == 5:
+        return (
+            {
+                "action": "hypothesize",
+                "params": {
+                    "root_cause_service": anchor_service,
+                    "mechanism": mechanism,
+                    "confidence": 0.7,
+                },
+            },
+            "Create root-cause hypothesis from gathered evidence",
+        )
+    if step_num == 6:
+        return (
+            {
+                "action": "remediate",
+                "params": {
+                    "type": "config_patch",
+                    "target": anchor_service,
+                    "details": f"Apply safe remediation patch on {anchor_service}",
+                },
+            },
+            "Attempt remediation on the suspected root-cause service",
+        )
+    return (
+        {
+            "action": "close_incident",
+            "params": {
+                "root_cause_service": anchor_service,
+                "mechanism": mechanism,
+                "remediation_taken": "config_patch",
+                "blast_radius": affected,
+                "summary": f"Diagnosed and remediated incident around {anchor_service}.",
+            },
+        },
+        "Close incident after remediation",
+    )
 
 TASK_NAMES = {
     "task1_cpu_saturation": ("Task 1: CPU Saturation", "easy"),
@@ -197,19 +192,21 @@ def run_task_demo(client: httpx.Client, task_id: str) -> Dict[str, Any]:
               f"cpu={health['cpu_pct']:5.1f}%  mem={health['mem_pct']:5.1f}%  "
               f"err={health['error_rate']:.4f}  p99={health['p99_ms']:.0f}ms")
 
-    # Step through expert policy
+    # Step through rule-based policy
     print(subheader("Agent Investigation"))
     print(f"  {C.DIM}{'Step':>6} │ {'Action':<18} │ {'Target':<20} │ Reasoning{C.RESET}")
     print(f"  {C.DIM}{'─' * 6}─┼─{'─' * 18}─┼─{'─' * 20}─┼─{'─' * 30}{C.RESET}")
 
-    policy = EXPERT_POLICIES[task_id]
     rewards = []
     done = False
+    anchor_service = pick_most_degraded_service(obs)
+    max_steps = int(obs.get("steps_remaining", 10))
 
-    for step_num, (action_dict, reasoning) in enumerate(policy, 1):
+    for step_num in range(1, max_steps + 1):
         if done:
             break
 
+        action_dict, reasoning = build_action_for_step(step_num, obs, anchor_service)
         target = action_dict["params"].get("service", action_dict["params"].get("target", "—"))
         print(step_line(step_num, action_dict["action"], target, reasoning))
 
@@ -237,10 +234,8 @@ def run_task_demo(client: httpx.Client, task_id: str) -> Dict[str, Any]:
 
     # Results
     total_reward = sum(rewards)
-    ceiling = {"task1_cpu_saturation": 1.05, "task2_cascading_failure": 1.10,
-               "task3_silent_corruption": 1.05, "task4_db_connection_limit": 1.05,
-               "task5_memory_leak_analytics": 1.05}.get(task_id, 1.05)
-    score = min(max(total_reward / ceiling, 0.01), 0.99)
+    ceiling = 1.05
+    score = min(max(total_reward / ceiling, 0.0), 1.0)
     success = score >= 0.5
 
     # Get final state with ground truth
@@ -318,7 +313,7 @@ def main() -> None:
   production incidents across a simulated microservice architecture — with
   deterministic grading, red-herring hardening, and no LLM in the loop.{C.RESET}
 
-  {C.BOLD}Running:{C.RESET} Expert policy on all 5 tasks (no LLM required)
+  {C.BOLD}Running:{C.RESET} Rule-based policy on all 5 tasks (no LLM required)
   {C.BOLD}Server:{C.RESET} {ENV_URL}
 """)
 
@@ -337,7 +332,7 @@ def main() -> None:
 
     # Run all tasks
     results = []
-    task_ids = list(EXPERT_POLICIES.keys())
+    task_ids = list(TASK_NAMES.keys())
 
     for task_id in task_ids:
         result = run_task_demo(client, task_id)
@@ -349,7 +344,7 @@ def main() -> None:
     # Save results to JSON
     output = {
         "environment": "incidentiq",
-        "agent": "expert-policy (deterministic)",
+        "agent": "rule-based policy (deterministic)",
         "tasks": results,
         "summary": {
             "success_rate": sum(r["success"] for r in results) / len(results),

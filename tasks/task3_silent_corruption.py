@@ -140,7 +140,7 @@ class Task3SilentCorruption(BaseTask):
                 score = max(score, 0.10)
             if correct_hypothesis:
                 score = max(score, 0.10)
-            return max(0.01, min(score, 0.25))
+            return max(0.0, min(score, 0.25))
 
         params = close_action.get("params", {})
         score = 0.0
@@ -180,4 +180,4 @@ class Task3SilentCorruption(BaseTask):
         efficiency = 1.0 - episode_state.step_count / episode_state.max_steps
         score += 0.10 * max(0.0, efficiency)
 
-        return max(0.01, min(score, 0.99))
+        return max(0.0, min(score, 1.0))

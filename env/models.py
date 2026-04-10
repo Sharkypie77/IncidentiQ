@@ -125,6 +125,7 @@ class StepResult(BaseModel):
 class ResetResult(BaseModel):
     """Result of resetting the environment for a new episode."""
 
+    session_id: Optional[str] = Field(None, description="Session identifier for subsequent step calls")
     observation: Observation = Field(..., description="Initial observation for the episode")
     task_id: str = Field(..., description="Identifier of the task being run")
     task_description: str = Field(..., description="Human-readable task description")

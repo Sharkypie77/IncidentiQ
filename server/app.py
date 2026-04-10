@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional
@@ -147,6 +148,7 @@ class AskIncidentResponse(BaseModel):
     answer: str = Field(..., description="Concise answer")
     confidence: float = Field(..., description="Confidence estimate in [0, 1]")
     supporting_signals: List[str] = Field(..., description="Signals used to derive the answer")
+    disclaimer: Optional[str] = Field(None, description="Additional disclaimer, when applicable")
 
 
 class McpResponse(BaseModel):
@@ -412,8 +414,8 @@ async def schema() -> SchemaResponse:
     )
 
 
-@app.post("/reset", response_model=ResetResponse)
-async def reset(body: Optional[ResetRequest] = None) -> ResetResponse:
+@app.post("/reset", response_model=ResetResult)
+async def reset(body: Optional[ResetRequest] = None) -> ResetResult:
     if body is None:
         body = ResetRequest()
     # Default to first available task if none specified
@@ -429,7 +431,7 @@ async def reset(body: Optional[ResetRequest] = None) -> ResetResponse:
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
 
-    return ResetResponse(
+    return ResetResult(
         session_id=session_id,
         observation=result.observation,
         task_id=result.task_id,
@@ -495,14 +497,26 @@ async def root_cause_tree(session_id: str) -> RootCauseTreeResponse:
 
 @app.post("/ask_incident", response_model=AskIncidentResponse)
 async def ask_incident(body: AskIncidentRequest) -> AskIncidentResponse:
+    """UI-only natural language Q&A. NOT called during episode steps.
+    Does not affect reward, grading, or episode state."""
     resolved = _get_session_id_or_404(body.session_id)
+    question = body.question.strip()
+    if not os.environ.get("HF_TOKEN"):
+        return AskIncidentResponse(
+            session_id=resolved,
+            question=question,
+            answer="LLM Q&A unavailable: HF_TOKEN not set. Root cause guidance is UI-only.",
+            confidence=0.0,
+            supporting_signals=[],
+            disclaimer="ui-only",
+        )
+
     with env._lock:
         ep = env.state[resolved]
 
     candidates = _build_root_cause_candidates(resolved, top_k=3)
     top = candidates[0]
     timeline_events = _build_timeline(resolved)
-    question = body.question.strip()
     q = question.lower()
     supporting_signals = list(top.evidence)
 
@@ -560,10 +574,9 @@ async def mcp_endpoint(body: Optional[dict] = None) -> McpResponse:
     )
 
 
-@app.get("/tasks", response_model=List[TaskInfo])
-async def tasks() -> List[TaskInfo]:
-    raw_tasks = env.get_tasks()
-    return [TaskInfo(**t) for t in raw_tasks]
+@app.get("/tasks", response_model=List[dict])
+async def tasks() -> List[dict]:
+    return env.get_tasks()
 
 
 def main(host: str = "0.0.0.0", port: int = 7860):

@@ -30,8 +30,6 @@ SUCCESS_SCORE_THRESHOLD = 0.6
 STEP_DELAY_SECONDS = float(os.getenv("STEP_DELAY_SECONDS", "0"))
 LLM_TIMEOUT_SECONDS = 30
 GLOBAL_TIMEOUT_MINUTES = 25
-RESCUE_START_STEP = int(os.getenv("RESCUE_START_STEP", "6"))
-FORCE_CLOSE_STEP = int(os.getenv("FORCE_CLOSE_STEP", "9"))
 
 MAX_TOTAL_REWARD = {
     "task1_cpu_saturation": 1.05,
@@ -308,24 +306,6 @@ def parse_action(raw: str) -> Optional[dict]:
     return None
 
 
-def _get_plan_action(task_id: str, action_name: str) -> dict:
-    plan = FALLBACK_PLANS.get(task_id, [])
-    for action in plan:
-        if action.get("action") == action_name:
-            return action
-    return {"action": "query_logs", "params": {"service": "api-gateway", "pattern": "error"}}
-
-
-def _select_rescue_action(task_id: str, used_action_types: set[str], force_close: bool = False) -> dict:
-    if force_close:
-        return _get_plan_action(task_id, "close_incident")
-    if "hypothesize" not in used_action_types:
-        return _get_plan_action(task_id, "hypothesize")
-    if "remediate" not in used_action_types:
-        return _get_plan_action(task_id, "remediate")
-    return _get_plan_action(task_id, "close_incident")
-
-
 # ── Main loop ──────────────────────────────────────────────────────────────
 
 def main() -> None:
@@ -360,8 +340,6 @@ def main() -> None:
                 last_reward = 0.0
                 fallback_idx = 0  # Track position in fallback plan
                 used_actions = set()  # Track actions to avoid repeats
-                used_action_types: set[str] = set()
-                non_positive_streak = 0
 
                 # 3. Step loop
                 for step_num in range(1, MAX_STEPS + 1):
@@ -373,67 +351,45 @@ def main() -> None:
 
                     obs_text = format_observation(observation)
 
-                    rescue_mode = step_num >= RESCUE_START_STEP or non_positive_streak >= 2
+                    # Try LLM first
+                    raw_action = get_agent_action(client, obs_text, history, last_reward, step_num)
 
-                    if rescue_mode:
-                        action_dict = _select_rescue_action(
-                            task_id=task_id,
-                            used_action_types=used_action_types,
-                            force_close=(step_num >= FORCE_CLOSE_STEP),
-                        )
-                        raw_action = json.dumps(action_dict)
-                    else:
-                        # Try LLM first
-                        raw_action = get_agent_action(client, obs_text, history, last_reward, step_num)
+                    action_dict = None
+                    if raw_action is not None:
+                        action_dict = parse_action(raw_action)
 
-                        action_dict = None
-                        if raw_action is not None:
-                            action_dict = parse_action(raw_action)
-
-                        # If LLM failed or returned unparseable output, use smart fallback
-                        if action_dict is None:
-                            fallback_plan = FALLBACK_PLANS.get(task_id, [])
-                            if fallback_idx < len(fallback_plan):
-                                action_dict = fallback_plan[fallback_idx]
-                                fallback_idx += 1
-                                raw_action = json.dumps(action_dict)
-                            else:
-                                # Exhausted fallbacks, use generic
-                                action_dict = {"action": "query_logs", "params": {"service": "api-gateway", "pattern": "error"}}
-                                raw_action = json.dumps(action_dict)
+                    # If LLM failed or returned unparseable output, use smart fallback
+                    if action_dict is None:
+                        fallback_plan = FALLBACK_PLANS.get(task_id, [])
+                        if fallback_idx < len(fallback_plan):
+                            action_dict = fallback_plan[fallback_idx]
+                            fallback_idx += 1
+                            raw_action = json.dumps(action_dict)
                         else:
-                            # Successful LLM response — advance fallback index based on what action type we're at
-                            action_name = action_dict.get("action", "")
-                            # If LLM is working, skip ahead in fallback plan
-                            if action_name in ("close_incident",):
-                                fallback_idx = 99  # No more fallbacks needed
+                            # Exhausted fallbacks, use generic
+                            action_dict = {"action": "query_logs", "params": {"service": "api-gateway", "pattern": "error"}}
+                            raw_action = json.dumps(action_dict)
+                    else:
+                        # Successful LLM response — advance fallback index if incident is already being closed
+                        if action_dict.get("action", "") == "close_incident":
+                            fallback_idx = 99
 
                     # Check for repeated actions
                     action_key = json.dumps(action_dict, sort_keys=True)
                     if action_key in used_actions:
-                        if rescue_mode:
-                            action_dict = _select_rescue_action(
-                                task_id=task_id,
-                                used_action_types=used_action_types,
-                                force_close=True,
-                            )
-                            raw_action = json.dumps(action_dict)
-                            action_key = json.dumps(action_dict, sort_keys=True)
-                        else:
-                            # Skip to next fallback instead of repeating
-                            fallback_plan = FALLBACK_PLANS.get(task_id, [])
-                            while fallback_idx < len(fallback_plan):
-                                candidate = fallback_plan[fallback_idx]
-                                candidate_key = json.dumps(candidate, sort_keys=True)
-                                fallback_idx += 1
-                                if candidate_key not in used_actions:
-                                    action_dict = candidate
-                                    raw_action = json.dumps(action_dict)
-                                    action_key = candidate_key
-                                    break
+                        # Skip to next fallback instead of repeating
+                        fallback_plan = FALLBACK_PLANS.get(task_id, [])
+                        while fallback_idx < len(fallback_plan):
+                            candidate = fallback_plan[fallback_idx]
+                            candidate_key = json.dumps(candidate, sort_keys=True)
+                            fallback_idx += 1
+                            if candidate_key not in used_actions:
+                                action_dict = candidate
+                                raw_action = json.dumps(action_dict)
+                                action_key = candidate_key
+                                break
 
                     used_actions.add(action_key)
-                    used_action_types.add(action_dict.get("action", ""))
                     action_str = json.dumps(action_dict, separators=(",", ":"))
 
                     # POST step
@@ -460,10 +416,6 @@ def main() -> None:
 
                     rewards.append(reward_val)
                     last_reward = reward_val
-                    if reward_val <= 0.0:
-                        non_positive_streak += 1
-                    else:
-                        non_positive_streak = 0
                     steps_taken = step_num
                     observation = step_data.get("observation", observation)
                     history.append({"obs": obs_text, "action": raw_action or action_str})
@@ -474,8 +426,7 @@ def main() -> None:
                 # 4. Score and success
                 total_reward = sum(rewards)
                 ceiling = MAX_TOTAL_REWARD.get(task_id, 0.85)
-                # Keep score in strict (0, 1) range for validator compatibility.
-                score = min(max(total_reward / ceiling, 0.01), 0.99)
+                score = min(max(total_reward / ceiling, 0.0), 1.0)
                 success = score >= SUCCESS_SCORE_THRESHOLD
             finally:
                 if start_logged:
