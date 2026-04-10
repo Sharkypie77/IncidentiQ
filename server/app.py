@@ -469,7 +469,7 @@ async def state(session_id: str) -> StateResponse:
         raise HTTPException(status_code=404, detail=str(exc))
 
 
-@app.get("/timeline/{session_id}", response_model=TimelineResponse)
+@app.get("/timeline/{session_id}")
 async def timeline(session_id: str) -> TimelineResponse:
     resolved = _get_session_id_or_404(session_id)
     with env._lock:
@@ -483,7 +483,7 @@ async def timeline(session_id: str) -> TimelineResponse:
     )
 
 
-@app.get("/root-cause-tree/{session_id}", response_model=RootCauseTreeResponse)
+@app.get("/root-cause-tree/{session_id}")
 async def root_cause_tree(session_id: str) -> RootCauseTreeResponse:
     resolved = _get_session_id_or_404(session_id)
     with env._lock:
@@ -495,7 +495,7 @@ async def root_cause_tree(session_id: str) -> RootCauseTreeResponse:
     )
 
 
-@app.post("/ask_incident", response_model=AskIncidentResponse)
+@app.post("/ask_incident")
 async def ask_incident(body: AskIncidentRequest) -> AskIncidentResponse:
     """UI-only natural language Q&A. NOT called during episode steps.
     Does not affect reward, grading, or episode state."""
@@ -559,7 +559,7 @@ async def ask_incident(body: AskIncidentRequest) -> AskIncidentResponse:
     )
 
 
-@app.post("/mcp", response_model=McpResponse, description="MCP protocol stub. Core environment interaction uses /reset and /step.")
+@app.post("/mcp", description="MCP protocol stub. Core environment interaction uses /reset and /step.")
 async def mcp_endpoint(body: Optional[dict] = None) -> McpResponse:
     """MCP protocol stub. Core environment interaction uses /reset and /step."""
     if body is None:

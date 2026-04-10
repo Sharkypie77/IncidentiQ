@@ -141,19 +141,19 @@ Terminal rewards are clamped to `[0.0, 0.60]`.
 | Step reward clamp | `[-0.15, +0.10]` | `env/reward.py` |
 | Terminal reward clamp | `[0.0, 0.60]` | `env/reward.py` |
 | Final task score clamp | `[0.0, 1.0]` | task graders + `run_demo.py` + `inference.py` |
-| Benchmark success rate | `40% (2/5)` | `benchmark_results.json` |
-| Average benchmark score | `0.2811` | `benchmark_results.json` |
-| Average benchmark steps | `7.0` | `benchmark_results.json` |
+| Benchmark success rate | `60% (3/5)` | `benchmark_results.json` |
+| Average benchmark score | `0.5608` | `benchmark_results.json` |
+| Average benchmark steps | `10.0` | `benchmark_results.json` |
 | Reward/score tests | `3 passed` | `test_step_reward_range`, `test_graders_return_valid_float`, `test_perfect_agent_scores_high` |
 ### Per-task Reward Snapshot (Rule-based Policy)
 | Task | Steps | Total Reward | Score |
 |---|---:|---:|---:|
-| `task1_cpu_saturation` | 7 | 0.6300 | 0.6000 |
-| `task2_cascading_failure` | 7 | -0.4100 | 0.0000 |
-| `task3_silent_corruption` | 7 | -0.2500 | 0.0000 |
-| `task4_db_connection_limit` | 7 | -0.2600 | 0.0000 |
-| `task5_memory_leak_analytics` | 7 | 0.8460 | 0.8057 |
-| **Average** | **7.0** | **0.1112** | **0.2811** |
+| `task1_cpu_saturation` | 10 | 1.0100 | 0.9619 |
+| `task2_cascading_failure` | 10 | 0.8750 | 0.8333 |
+| `task3_silent_corruption` | 10 | 0.6900 | 0.6571 |
+| `task4_db_connection_limit` | 10 | 0.3550 | 0.3381 |
+| `task5_memory_leak_analytics` | 10 | 0.0140 | 0.0133 |
+| **Average** | **10.0** | **0.5888** | **0.5608** |
 ## API Reference
 | Method | Path | Purpose |
 |---|---|---|
@@ -178,23 +178,21 @@ The UI supports:
 - run arbitrary actions
 - inspect timeline/root-cause tree
 - ask natural-language incident questions
-## Recorded Inference Run (Recent)
-| Task | Success | Steps |
-|---|---|---:|
-| `task1_cpu_saturation` | ✅ | 6 |
-| `task2_cascading_failure` | ✅ | 6 |
-| `task3_silent_corruption` | ✅ | 7 |
-| `task4_db_connection_limit` | ✅ | 7 |
-| `task5_memory_leak_analytics` | ✅ | 5 |
-| **Summary** | **5/5 solved** | **6.2 avg** |
-### Example Output
-```text
-[START] task=task1_cpu_saturation env=incidentiq model=meta/llama-3.1-70b-instruct
-[STEP] step=1 action={"action":"query_metrics","params":{"service":"order-service","metric":"cpu_pct","window_minutes":10}} reward=0.08 done=false error=null
-[STEP] step=2 action={"action":"query_logs","params":{"service":"order-service","pattern":"slow query detected"}} reward=0.08 done=false error=null
-[STEP] step=6 action={"action":"close_incident","params":{"root_cause_service":"order-service","mechanism":"CPU saturation from missing database index","remediation_taken":"rollback","blast_radius":["order-service","api-gateway"],"summary":"order-service CPU saturated due to missing DB index causing full table scans. Rolled back the deployment."}} reward=0.60 done=true error=null
-[END] success=true steps=6 rewards=0.08,0.08,0.03,0.10,0.00,0.60
-```
+## Baseline Scores
+
+These scores are from running inference.py with meta/llama-3.1-70b-instruct
+via NVIDIA NIM API. The rule-based demo policy (run_demo.py) scores are
+shown separately.
+
+| Task | Difficulty | inference.py (LLM) | run_demo.py (rule-based) |
+|------|-----------|-------------------|--------------------------|
+| task1_cpu_saturation | Easy | 0.68 | 0.9619 |
+| task2_cascading_failure | Medium | 0.77 | 0.8333 |
+| task3_silent_corruption | Hard | 0.00* | 0.6571 |
+| task4_db_connection_limit | Medium | — | 0.3381 |
+| task5_memory_leak_analytics | Medium-Hard | — | 0.0133 |
+
+*Task 3 LLM score under investigation — partial credit path bug.
 ## Running the Project
 ### Environment Variables
 | Variable | Default | Required | Description |

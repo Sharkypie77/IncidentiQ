@@ -76,85 +76,22 @@ def result_badge(success: bool) -> str:
 
 # ── Rule-based policy ────────────────────────────────────────────────────────
 
-def pick_most_degraded_service(observation: Dict[str, Any]) -> str:
+def pick_service_from_queried(observation: Dict[str, Any], queried_services: List[str]) -> str:
     service_health = observation.get("service_health", {})
     if not service_health:
         return "api-gateway"
-    return max(
-        service_health.items(),
-        key=lambda item: (
-            float(item[1].get("p99_ms", 0.0)),
-            float(item[1].get("error_rate", 0.0)),
-            float(item[1].get("cpu_pct", 0.0)),
-        ),
-    )[0]
 
-
-def build_action_for_step(step_num: int, observation: Dict[str, Any], anchor_service: str) -> tuple[Dict[str, Any], str]:
-    affected = [
-        name
-        for name, svc in observation.get("service_health", {}).items()
-        if svc.get("status") != "healthy" or float(svc.get("error_rate", 0.0)) > 0.0
-    ] or [anchor_service]
-    mechanism = f"performance degradation centered on {anchor_service} from service-level instability"
-
-    if step_num == 1:
-        return (
-            {"action": "query_metrics", "params": {"service": anchor_service, "metric": "p99_ms", "window_minutes": 30}},
-            "Query metrics for the most degraded service (highest p99 latency)",
-        )
-    if step_num == 2:
-        return (
-            {"action": "query_logs", "params": {"service": anchor_service, "pattern": "error"}},
-            "Check error logs on the same degraded service",
-        )
-    if step_num == 3:
-        return (
-            {"action": "check_deployment", "params": {"service": anchor_service}},
-            "Inspect recent deployment changes on that service",
-        )
-    if step_num == 4:
-        return (
-            {"action": "check_config", "params": {"service": anchor_service, "key": "payment-handler"}},
-            "Inspect critical config key on that service",
-        )
-    if step_num == 5:
-        return (
-            {
-                "action": "hypothesize",
-                "params": {
-                    "root_cause_service": anchor_service,
-                    "mechanism": mechanism,
-                    "confidence": 0.7,
-                },
-            },
-            "Create root-cause hypothesis from gathered evidence",
-        )
-    if step_num == 6:
-        return (
-            {
-                "action": "remediate",
-                "params": {
-                    "type": "config_patch",
-                    "target": anchor_service,
-                    "details": f"Apply safe remediation patch on {anchor_service}",
-                },
-            },
-            "Attempt remediation on the suspected root-cause service",
-        )
-    return (
-        {
-            "action": "close_incident",
-            "params": {
-                "root_cause_service": anchor_service,
-                "mechanism": mechanism,
-                "remediation_taken": "config_patch",
-                "blast_radius": affected,
-                "summary": f"Diagnosed and remediated incident around {anchor_service}.",
-            },
-        },
-        "Close incident after remediation",
-    )
+    picked_service = "api-gateway"
+    best_score = -1.0
+    for service_name in queried_services:
+        health = service_health.get(service_name)
+        if not health:
+            continue
+        score = float(health.get("error_rate", 0.0)) * float(health.get("p99_ms", 0.0))
+        if score > best_score:
+            best_score = score
+            picked_service = service_name
+    return picked_service
 
 TASK_NAMES = {
     "task1_cpu_saturation": ("Task 1: CPU Saturation", "easy"),
@@ -199,38 +136,115 @@ def run_task_demo(client: httpx.Client, task_id: str) -> Dict[str, Any]:
 
     rewards = []
     done = False
-    anchor_service = pick_most_degraded_service(obs)
-    max_steps = int(obs.get("steps_remaining", 10))
+    step_num = 1
+    queried_services: List[str] = []
 
-    for step_num in range(1, max_steps + 1):
+    def execute_action(action_dict: Dict[str, Any], reasoning: str) -> None:
+        nonlocal obs, done, step_num
         if done:
-            break
-
-        action_dict, reasoning = build_action_for_step(step_num, obs, anchor_service)
+            return
         target = action_dict["params"].get("service", action_dict["params"].get("target", "—"))
         print(step_line(step_num, action_dict["action"], target, reasoning))
-
-        # Execute step
         try:
-            r = client.post("/step", json={"session_id": session_id, "action": action_dict})
-            r.raise_for_status()
-            step_data = r.json()
+            resp = client.post("/step", json={"session_id": session_id, "action": action_dict})
+            resp.raise_for_status()
+            step_data = resp.json()
         except Exception as e:
             print(f"    {C.RED}ERROR: {e}{C.RESET}")
             rewards.append(0.0)
-            continue
+            step_num += 1
+            return
 
         reward_val = step_data["reward"]["value"]
         reward_reason = step_data["reward"]["reason"]
         done = step_data["done"]
-        cumulative = step_data["reward"]["cumulative"]
         rewards.append(reward_val)
-
-        # Show reward inline
         print(f"         │ {reward_badge(reward_val)} │ {C.DIM}{reward_reason[:50]}{C.RESET}")
-
         obs = step_data["observation"]
-        time.sleep(0.1)  # Slight delay for visual effect
+        step_num += 1
+        time.sleep(0.1)
+
+    # Step 1
+    execute_action(
+        {"action": "query_metrics", "params": {"service": "api-gateway", "metric": "error_rate", "window_minutes": 30}},
+        "Start at entry point: inspect api-gateway metrics",
+    )
+    queried_services.append("api-gateway")
+
+    # Step 2
+    execute_action(
+        {"action": "query_logs", "params": {"service": "api-gateway", "pattern": "error"}},
+        "Inspect api-gateway logs for upstream failure hints",
+    )
+
+    # Step 3 (for each api-gateway dependency)
+    dependencies = list(obs.get("dependency_graph", {}).get("api-gateway", []))
+    for dep_service in dependencies:
+        if done:
+            break
+        execute_action(
+            {"action": "query_metrics", "params": {"service": dep_service, "metric": "error_rate", "window_minutes": 30}},
+            f"Query upstream dependency metrics: {dep_service}",
+        )
+        queried_services.append(dep_service)
+
+    # Step 4: pick service with highest error_rate * p99_ms among queried services
+    picked_service = pick_service_from_queried(obs, queried_services)
+
+    # Steps 5-10
+    follow_up_actions: List[tuple[Dict[str, Any], str]] = [
+        (
+            {"action": "query_logs", "params": {"service": picked_service, "pattern": "error"}},
+            "Deepen evidence on selected service with error logs",
+        ),
+        (
+            {"action": "check_deployment", "params": {"service": picked_service}},
+            "Check latest deployment for regression signal",
+        ),
+        (
+            {"action": "check_config", "params": {"service": picked_service, "key": "payment-handler"}},
+            "Check critical config key for drift",
+        ),
+        (
+            {
+                "action": "hypothesize",
+                "params": {
+                    "root_cause_service": picked_service,
+                    "mechanism": "detected via metric and log analysis",
+                    "confidence": 0.8,
+                },
+            },
+            "Form hypothesis from metric+log evidence",
+        ),
+        (
+            {
+                "action": "remediate",
+                "params": {
+                    "type": "rollback",
+                    "target": picked_service,
+                    "details": "rolling back last deployment",
+                },
+            },
+            "Apply rollback remediation",
+        ),
+        (
+            {
+                "action": "close_incident",
+                "params": {
+                    "root_cause_service": picked_service,
+                    "mechanism": "detected via metric and log analysis",
+                    "remediation_taken": "rollback",
+                    "blast_radius": [picked_service, "api-gateway"],
+                    "summary": "Incident resolved",
+                },
+            },
+            "Close incident with final report",
+        ),
+    ]
+    for action_dict, reasoning in follow_up_actions:
+        if done:
+            break
+        execute_action(action_dict, reasoning)
 
     # Results
     total_reward = sum(rewards)
