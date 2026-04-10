@@ -146,6 +146,15 @@ This strict score range is required by benchmark validators that reject `0.0` an
 | Average benchmark score | `0.99` | `benchmark_results.json` |
 | Average benchmark steps | `7.6` | `benchmark_results.json` |
 | Reward/score tests | `3 passed` | `test_step_reward_range`, `test_graders_return_valid_float`, `test_perfect_agent_scores_high` |
+### Per-task Reward Snapshot (Expert Policy)
+| Task | Steps | Total Reward | Score |
+|---|---:|---:|---:|
+| `task1_cpu_saturation` | 7 | 0.889 | 0.99 |
+| `task2_cascading_failure` | 9 | 0.989 | 0.99 |
+| `task3_silent_corruption` | 8 | 0.919 | 0.99 |
+| `task4_db_connection_limit` | 7 | 0.939 | 0.99 |
+| `task5_memory_leak_analytics` | 7 | 0.889 | 0.99 |
+| **Average** | **7.6** | **0.925** | **0.99** |
 ## API Reference
 | Method | Path | Purpose |
 |---|---|---|
@@ -179,6 +188,14 @@ The UI supports:
 | `task4_db_connection_limit` | ✅ | 7 |
 | `task5_memory_leak_analytics` | ✅ | 5 |
 | **Summary** | **5/5 solved** | **6.2 avg** |
+### Example Output
+```text
+[START] task=task1_cpu_saturation env=incidentiq model=meta/llama-3.1-70b-instruct
+[STEP] step=1 action={"action":"query_metrics","params":{"service":"order-service","metric":"cpu_pct","window_minutes":10}} reward=0.08 done=false error=null
+[STEP] step=2 action={"action":"query_logs","params":{"service":"order-service","pattern":"slow query detected"}} reward=0.08 done=false error=null
+[STEP] step=6 action={"action":"close_incident","params":{"root_cause_service":"order-service","mechanism":"CPU saturation from missing database index","remediation_taken":"rollback","blast_radius":["order-service","api-gateway"],"summary":"order-service CPU saturated due to missing DB index causing full table scans. Rolled back the deployment."}} reward=0.60 done=true error=null
+[END] success=true steps=6 rewards=0.08,0.08,0.03,0.10,0.00,0.60
+```
 ## Running the Project
 ### Environment Variables
 | Variable | Default | Required | Description |
