@@ -6,6 +6,8 @@ from abc import ABC, abstractmethod
 
 from env.state_machine import EpisodeState
 
+STRICT_SCORE_EPS = 1e-6
+
 
 class BaseTask(ABC):
     """
@@ -26,6 +28,11 @@ class BaseTask(ABC):
     max_steps: int = 0
     description: str = ""
 
+    @staticmethod
+    def clamp_score(score: float) -> float:
+        """Clamp score to the strict open interval (0, 1)."""
+        return max(STRICT_SCORE_EPS, min(float(score), 1.0 - STRICT_SCORE_EPS))
+
     @abstractmethod
     def build_episode(self, seed: int) -> EpisodeState:
         """Build and return a fresh :class:`EpisodeState` for this task."""
@@ -36,7 +43,7 @@ class BaseTask(ABC):
         """
         Score a completed (or timed-out) episode.
 
-        Returns a float in ``[0.0, 1.0]``.  Must be deterministic:
+        Returns a float in ``(0.0, 1.0)``.  Must be deterministic:
         the same ``episode_state`` always produces the same score.
         Must **not** call any LLM.
         """

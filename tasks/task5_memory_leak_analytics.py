@@ -142,7 +142,7 @@ class Task5MemoryLeakAnalytics(BaseTask):
                     score = max(score, 0.10)
                 if act == "hypothesize" and params.get("root_cause_service") == gt.root_cause_service:
                     score = max(score, 0.10)
-            return max(0.0, min(score, 0.25))
+            return self.clamp_score(min(score, 0.25))
 
         params = close_action.get("params", {})
         score = 0.0
@@ -185,4 +185,4 @@ class Task5MemoryLeakAnalytics(BaseTask):
         efficiency = 1.0 - episode_state.step_count / episode_state.max_steps
         score += 0.10 * max(0.0, efficiency)
 
-        return max(0.0, min(score, 1.0))
+        return self.clamp_score(score)

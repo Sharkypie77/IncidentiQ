@@ -157,7 +157,7 @@ class Task3SilentCorruption(BaseTask):
             )
             if investigated:
                 score += 0.10
-            return min(max(score, 0.0), 1.0)
+            return self.clamp_score(score)
 
         params = close_action.get("params", {})
         score = 0.0
@@ -197,4 +197,4 @@ class Task3SilentCorruption(BaseTask):
         efficiency = 1.0 - episode_state.step_count / episode_state.max_steps
         score += 0.10 * max(0.0, efficiency)
 
-        return max(0.0, min(score, 1.0))
+        return self.clamp_score(score)
