@@ -4,116 +4,803 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>IncidentIQ Console</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
   <style>
-    :root { color-scheme: dark; }
-    body { font-family: Arial, sans-serif; margin: 0; background: #0f1117; color: #e6edf3; }
-    .wrap { max-width: 1100px; margin: 20px auto; padding: 0 16px; }
-    h1 { margin: 0 0 8px; }
-    .sub { color: #9da7b3; margin-bottom: 18px; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
-    .card { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 14px; }
-    .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
-    input, select, textarea, button {
-      background: #0d1117; color: #e6edf3; border: 1px solid #30363d; border-radius: 6px;
-      padding: 8px; font-size: 14px;
+    :root {
+      --bg: #f5f2eb;
+      --bg-soft: #fdfbf7;
+      --ink: #1b1f26;
+      --muted: #6b7280;
+      --line: rgba(18, 25, 38, 0.13);
+      --line-strong: rgba(18, 25, 38, 0.2);
+      --card: #ffffff;
+      --ok: #1f7a4f;
+      --warn: #9b5f00;
+      --bad: #8b1a1a;
+      --brand: #193d34;
+      --brand-soft: #e7f3ef;
+      --accent: #2f7c67;
+      --amber-soft: #fdf1df;
+      --red-soft: #fbe6e6;
+      --shadow: 0 2px 14px rgba(17, 24, 39, 0.08);
+      --shadow-lg: 0 12px 36px rgba(17, 24, 39, 0.12);
+      --radius: 14px;
     }
-    button { cursor: pointer; }
-    button:hover { border-color: #58a6ff; }
-    textarea { width: 100%; min-height: 120px; resize: vertical; }
-    .mono { font-family: Consolas, monospace; }
-    #output { white-space: pre-wrap; max-height: 420px; overflow: auto; }
-    .ok { color: #3fb950; }
-    .warn { color: #d29922; }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: Inter, Arial, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 8% -5%, rgba(47, 124, 103, 0.08), transparent 30%),
+        radial-gradient(circle at 85% 10%, rgba(25, 61, 52, 0.08), transparent 32%),
+        var(--bg);
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.02;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 160 160' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      z-index: 999;
+    }
+
+    .mono {
+      font-family: "JetBrains Mono", Consolas, monospace;
+    }
+
+    .container {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 0 20px 28px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      backdrop-filter: blur(10px);
+      background: rgba(245, 242, 235, 0.86);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .topbar-inner {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    .brand-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 0 6px rgba(47, 124, 103, 0.14);
+      animation: pulse 2.3s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(0.74); opacity: 0.7; }
+    }
+
+    .status-pill {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 6px 12px;
+      font-size: 12px;
+      color: var(--muted);
+      background: rgba(255, 255, 255, 0.7);
+    }
+
+    .status-pill.ok { color: var(--ok); border-color: rgba(31, 122, 79, 0.35); background: #f1faf5; }
+    .status-pill.warn { color: var(--warn); border-color: rgba(155, 95, 0, 0.35); background: #fff7eb; }
+
+    .hero {
+      padding: 32px 0 22px;
+      display: grid;
+      grid-template-columns: 1.25fr 1fr;
+      gap: 18px;
+      align-items: stretch;
+    }
+
+    .hero-panel {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      box-shadow: var(--shadow-lg);
+      padding: 22px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      color: var(--muted);
+      background: var(--bg-soft);
+      font-size: 12px;
+      margin-bottom: 12px;
+    }
+
+    .eyebrow::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+    }
+
+    h1 {
+      font-size: clamp(28px, 4vw, 42px);
+      letter-spacing: -0.03em;
+      line-height: 1.08;
+      margin-bottom: 10px;
+    }
+
+    .hero-sub {
+      color: var(--muted);
+      margin-bottom: 16px;
+      max-width: 65ch;
+    }
+
+    .pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .pill {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 5px 10px;
+      font-size: 12px;
+      color: #435063;
+      background: #fbf9f4;
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .metric {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px;
+      background: #fff;
+    }
+
+    .metric .val {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--brand);
+      letter-spacing: -0.02em;
+    }
+
+    .metric .lab {
+      margin-top: 3px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .loop {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 14px;
+      background: linear-gradient(180deg, #ffffff, #fcfbf7);
+    }
+
+    .loop h3 {
+      font-size: 13px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+
+    .loop-step {
+      display: grid;
+      grid-template-columns: 28px 1fr;
+      gap: 10px;
+      padding: 10px 0;
+      border-bottom: 1px dashed var(--line);
+    }
+
+    .loop-step:last-child { border-bottom: 0; }
+
+    .loop-num {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--brand-soft);
+      color: var(--brand);
+      font-weight: 600;
+      font-size: 12px;
+    }
+
+    .loop-title {
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .loop-desc {
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 2px;
+    }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: 390px minmax(0, 1fr);
+      gap: 14px;
+      margin-top: 6px;
+    }
+
+    .stack {
+      display: grid;
+      gap: 12px;
+      align-content: start;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 14px;
+    }
+
+    .card h2 {
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      margin-top: 8px;
+    }
+
+    input, select, textarea, button {
+      font: inherit;
+      color: var(--ink);
+      border: 1px solid var(--line-strong);
+      background: #fff;
+      border-radius: 10px;
+      padding: 9px 10px;
+      transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+    }
+
+    input, select, textarea { width: 100%; }
+
+    textarea {
+      min-height: 160px;
+      resize: vertical;
+      line-height: 1.5;
+    }
+
+    input:focus, select:focus, textarea:focus, button:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(47, 124, 103, 0.16);
+    }
+
+    button {
+      cursor: pointer;
+      background: #fff;
+      font-weight: 600;
+    }
+
+    button.primary {
+      background: linear-gradient(180deg, #2f7c67, #216352);
+      color: #fff;
+      border-color: #1f5e4f;
+    }
+
+    button:hover {
+      background: #f8fafb;
+    }
+
+    button.primary:hover {
+      background: linear-gradient(180deg, #33856f, #236754);
+    }
+
+    .split-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .split-3 {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .session-text {
+      margin-top: 10px;
+      font-size: 12px;
+      color: var(--muted);
+      word-break: break-all;
+    }
+
+    .session-text strong { color: var(--ink); }
+
+    .task-desc {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 12px;
+      min-height: 34px;
+    }
+
+    .obs-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: start;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .alert {
+      padding: 10px 11px;
+      border-radius: 11px;
+      font-size: 13px;
+      border: 1px solid var(--line);
+      background: #fbfaf6;
+      color: #404b5d;
+      margin-bottom: 11px;
+    }
+
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 11px;
+    }
+
+    .meta-chip {
+      padding: 5px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: #fff;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .health-grid {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      overflow: hidden;
+      background: #fff;
+    }
+
+    .health-row {
+      display: grid;
+      grid-template-columns: 160px repeat(4, 1fr);
+      gap: 8px;
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--line);
+      align-items: center;
+      font-size: 12px;
+    }
+
+    .health-row.head {
+      background: #f9f8f3;
+      font-weight: 600;
+      color: #5b6474;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .health-row:last-child { border-bottom: 0; }
+
+    .svc {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-weight: 600;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #c9cfd9;
+    }
+
+    .dot.healthy { background: #2f8f63; }
+    .dot.degraded { background: #c27b1a; }
+    .dot.down { background: #a23030; }
+
+    .logs {
+      max-height: 430px;
+      overflow: auto;
+      display: grid;
+      gap: 8px;
+      padding-right: 2px;
+    }
+
+    .log {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px;
+      background: #fff;
+    }
+
+    .log.good { border-color: rgba(31, 122, 79, 0.32); background: #f4fcf7; }
+    .log.warn { border-color: rgba(155, 95, 0, 0.32); background: #fff8ee; }
+    .log.bad { border-color: rgba(139, 26, 26, 0.33); background: #fef3f3; }
+
+    .log-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+
+    .log-title {
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .log-time {
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .log pre {
+      margin-top: 6px;
+      padding: 10px;
+      border-radius: 10px;
+      background: #171d28;
+      color: #e8eefb;
+      overflow: auto;
+      max-height: 230px;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .small {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .kbd {
+      border: 1px solid var(--line-strong);
+      border-bottom-width: 2px;
+      border-radius: 6px;
+      padding: 2px 6px;
+      background: #fff;
+      color: #4b5563;
+      font-family: "JetBrains Mono", Consolas, monospace;
+      font-size: 11px;
+    }
+
+    .actions-help {
+      display: grid;
+      gap: 4px;
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .empty {
+      border: 1px dashed var(--line-strong);
+      border-radius: 12px;
+      padding: 14px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+      background: rgba(255, 255, 255, 0.6);
+    }
+
+    .footer-note {
+      margin-top: 16px;
+      color: var(--muted);
+      font-size: 12px;
+      text-align: center;
+    }
+
+    @media (max-width: 1100px) {
+      .hero {
+        grid-template-columns: 1fr;
+      }
+      .workspace {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .topbar-inner, .container { padding-left: 14px; padding-right: 14px; }
+      .metrics { grid-template-columns: 1fr; }
+      .split-2, .split-3 { grid-template-columns: 1fr; }
+      .health-row {
+        grid-template-columns: 1fr 1fr;
+        row-gap: 5px;
+      }
+      .health-row.head { display: none; }
+      .svc { grid-column: 1 / -1; }
+    }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <h1>IncidentIQ Console</h1>
-    <div class="sub">Run tasks, execute actions, inspect timeline, and ask incident questions.</div>
-
-    <div class="grid">
-      <div class="card">
-        <strong>Server</strong>
-        <div class="row">
-          <button id="btn-health">Refresh Health</button>
-          <span id="health" class="mono warn">checking...</span>
-        </div>
-        <div class="row">
-          <button id="btn-tasks">Load Tasks</button>
-        </div>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <span class="brand-dot"></span>
+        <span>IncidentIQ Console</span>
       </div>
-
-      <div class="card">
-        <strong>Session</strong>
-        <div class="row">
-          <select id="task"></select>
-          <input id="seed" placeholder="seed (optional)" />
-          <button id="btn-reset">Reset</button>
-        </div>
-        <div class="row mono">
-          <span>session_id:</span><span id="session-id">none</span>
-        </div>
-      </div>
-
-      <div class="card">
-        <strong>AI Insights</strong>
-        <div class="row">
-          <button id="btn-timeline">Timeline</button>
-          <button id="btn-root-cause">Root Cause Tree</button>
-        </div>
-        <div class="row">
-          <input id="question" style="flex:1" placeholder="What caused the outage?" />
-          <button id="btn-ask">Ask</button>
-        </div>
-      </div>
+      <span id="health-pill" class="status-pill warn mono">checking health...</span>
     </div>
+  </header>
 
-    <div class="card" style="margin-top:14px;">
-      <strong>Action</strong>
-      <div class="row">
-        <select id="action">
-          <option>query_logs</option>
-          <option>query_metrics</option>
-          <option>query_traces</option>
-          <option>check_deployment</option>
-          <option>check_config</option>
-          <option>hypothesize</option>
-          <option>remediate</option>
-          <option>close_incident</option>
-        </select>
-        <button id="btn-step">Run Step</button>
+  <main class="container">
+    <section class="hero">
+      <article class="hero-panel">
+        <span class="eyebrow">Production Incident Response RL Environment</span>
+        <h1>Investigate incidents step by step, with fast operator feedback.</h1>
+        <p class="hero-sub">
+          This UI gives you a cleaner command center than the default console: run episodes, execute actions, inspect service
+          health evolution, and pull AI-assisted timeline/root-cause views without leaving one screen.
+        </p>
+        <div class="pills">
+          <span class="pill">Deterministic grading</span>
+          <span class="pill">No LLM in grader</span>
+          <span class="pill">Observation-driven loop</span>
+          <span class="pill">5 benchmark tasks</span>
+        </div>
+        <div class="metrics">
+          <div class="metric">
+            <div id="metric-tasks" class="val mono">—</div>
+            <div class="lab">Tasks loaded</div>
+          </div>
+          <div class="metric">
+            <div id="metric-step" class="val mono">0</div>
+            <div class="lab">Current step</div>
+          </div>
+          <div class="metric">
+            <div id="metric-remain" class="val mono">—</div>
+            <div class="lab">Steps remaining</div>
+          </div>
+        </div>
+      </article>
+
+      <article class="hero-panel loop">
+        <h3>RL Interaction Loop</h3>
+        <div class="loop-step">
+          <div class="loop-num mono">01</div>
+          <div>
+            <div class="loop-title">Observe</div>
+            <div class="loop-desc">Read service health, logs, dependency graph, and alert context.</div>
+          </div>
+        </div>
+        <div class="loop-step">
+          <div class="loop-num mono">02</div>
+          <div>
+            <div class="loop-title">Act</div>
+            <div class="loop-desc">Send one action at a time: inspect, hypothesize, remediate, close.</div>
+          </div>
+        </div>
+        <div class="loop-step">
+          <div class="loop-num mono">03</div>
+          <div>
+            <div class="loop-title">Learn</div>
+            <div class="loop-desc">Track reward deltas and adapt based on outcome and new evidence.</div>
+          </div>
+        </div>
+        <div class="loop-step">
+          <div class="loop-num mono">04</div>
+          <div>
+            <div class="loop-title">Explain</div>
+            <div class="loop-desc">Use timeline and root-cause tree endpoints for postmortem-grade output.</div>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <section class="workspace">
+      <div class="stack">
+        <article class="card">
+          <h2>Server & Session</h2>
+          <div class="row split-3">
+            <button id="btn-health">Refresh health</button>
+            <button id="btn-tasks">Load tasks</button>
+            <button id="btn-state">Fetch state</button>
+          </div>
+          <div class="row split-2">
+            <select id="task"></select>
+            <input id="seed" class="mono" placeholder="Seed (optional)">
+          </div>
+          <div class="row">
+            <button id="btn-reset" class="primary" style="width:100%;">Reset episode</button>
+          </div>
+          <div class="session-text mono">
+            <strong>session_id:</strong> <span id="session-id">none</span>
+          </div>
+          <div class="task-desc" id="task-desc">Load tasks to begin.</div>
+        </article>
+
+        <article class="card">
+          <h2>Action Composer</h2>
+          <div class="row split-2">
+            <select id="action">
+              <option>query_logs</option>
+              <option>query_metrics</option>
+              <option>query_traces</option>
+              <option>check_deployment</option>
+              <option>check_config</option>
+              <option>hypothesize</option>
+              <option>remediate</option>
+              <option>close_incident</option>
+            </select>
+            <button id="btn-step" class="primary">Run step</button>
+          </div>
+          <div class="row">
+            <textarea id="params" class="mono"></textarea>
+          </div>
+          <div class="actions-help">
+            <div>Use <span class="kbd">Ctrl</span> + <span class="kbd">Enter</span> inside params to run step quickly.</div>
+            <div>Action templates auto-refresh when you switch action type.</div>
+          </div>
+        </article>
+
+        <article class="card">
+          <h2>AI Insights</h2>
+          <div class="row split-2">
+            <button id="btn-timeline">Timeline</button>
+            <button id="btn-root-cause">Root cause tree</button>
+          </div>
+          <div class="row split-2">
+            <input id="question" placeholder="What caused the outage?">
+            <button id="btn-ask">Ask incident</button>
+          </div>
+          <p class="small" style="margin-top:8px;">
+            Ask endpoint is UI-only and does not affect episode reward or grader output.
+          </p>
+        </article>
       </div>
-      <textarea id="params" class="mono"></textarea>
-    </div>
 
-    <div class="card" style="margin-top:14px;">
-      <strong>Output</strong>
-      <div id="output" class="mono"></div>
-    </div>
-  </div>
+      <div class="stack">
+        <article class="card">
+          <div class="obs-header">
+            <h2 style="margin:0;">Observation Snapshot</h2>
+            <span id="obs-updated" class="small mono">not initialized</span>
+          </div>
+          <div id="alert" class="alert">Reset an episode to view the first observation.</div>
+          <div class="meta">
+            <span id="meta-task" class="meta-chip mono">task: —</span>
+            <span id="meta-step" class="meta-chip mono">step: —</span>
+            <span id="meta-remaining" class="meta-chip mono">remaining: —</span>
+            <span id="meta-reward" class="meta-chip mono">last reward: —</span>
+          </div>
+          <div id="service-health" class="health-grid">
+            <div class="health-row head">
+              <div>Service</div>
+              <div>Status</div>
+              <div>CPU</div>
+              <div>p99</div>
+              <div>Error rate</div>
+            </div>
+            <div class="empty">No observation yet.</div>
+          </div>
+        </article>
+
+        <article class="card">
+          <h2>Activity Feed</h2>
+          <div id="logs" class="logs">
+            <div class="empty">No events yet. Start by resetting a task.</div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <p class="footer-note">IncidentIQ Console UI upgraded for richer observability and smoother episode workflows.</p>
+  </main>
 
   <script>
     const $ = (id) => document.getElementById(id);
-    const out = $("output");
+    const logsEl = $("logs");
+
     let sessionId = "";
+    let lastObservation = null;
+    let taskList = [];
+    let eventCount = 0;
 
     const samples = {
-      query_logs: {"service":"order-service","pattern":"error"},
-      query_metrics: {"service":"order-service","metric":"cpu_pct","window_minutes":30},
-      query_traces: {"service":"order-service"},
-      check_deployment: {"service":"order-service"},
-      check_config: {"service":"order-service","key":"payment-handler"},
-      hypothesize: {"root_cause_service":"order-service","mechanism":"CPU saturation from missing index","confidence":0.9},
-      remediate: {"type":"rollback","target":"order-service","details":"Rollback bad deployment"},
-      close_incident: {"root_cause_service":"order-service","mechanism":"CPU saturation from missing index","remediation_taken":"rollback","blast_radius":["order-service","api-gateway"],"summary":"Closed after rollback"}
+      query_logs: { service: "order-service", pattern: "error" },
+      query_metrics: { service: "order-service", metric: "error_rate", window_minutes: 30 },
+      query_traces: { service: "order-service" },
+      check_deployment: { service: "order-service" },
+      check_config: { service: "order-service", key: "payment-handler" },
+      hypothesize: {
+        root_cause_service: "order-service",
+        mechanism: "high error rate and latency detected via metric analysis",
+        confidence: 0.8
+      },
+      remediate: {
+        type: "rollback",
+        target: "order-service",
+        details: "rolling back last deployment"
+      },
+      close_incident: {
+        root_cause_service: "order-service",
+        mechanism: "high error rate and latency detected via metric analysis",
+        remediation_taken: "rollback",
+        blast_radius: ["order-service", "api-gateway"],
+        summary: "Incident closed after investigating order-service"
+      }
     };
 
-    function log(title, data) {
-      const ts = new Date().toLocaleTimeString();
-      out.textContent = `[${ts}] ${title}\n${JSON.stringify(data, null, 2)}\n\n` + out.textContent;
+    function now() {
+      return new Date().toLocaleTimeString();
     }
 
-    async function callApi(path, init) {
+    function toneFromReward(reward) {
+      if (typeof reward !== "number") return "";
+      if (reward >= 0.08) return "good";
+      if (reward < 0) return "bad";
+      return "warn";
+    }
+
+    function createLog(title, payload, tone = "") {
+      eventCount += 1;
+      if (logsEl.querySelector(".empty")) logsEl.innerHTML = "";
+
+      const card = document.createElement("article");
+      card.className = `log ${tone}`.trim();
+      const json = typeof payload === "string" ? payload : JSON.stringify(payload, null, 2);
+      card.innerHTML = `
+        <div class="log-top">
+          <div class="log-title">${title}</div>
+          <div class="log-time mono">${now()} · #${eventCount}</div>
+        </div>
+        <pre class="mono"></pre>
+      `;
+      card.querySelector("pre").textContent = json;
+      logsEl.prepend(card);
+    }
+
+    async function callApi(path, init = {}) {
       const res = await fetch(path, init);
       const txt = await res.text();
       let data = txt;
@@ -124,117 +811,251 @@
       return data;
     }
 
+    function healthStatusClass(status) {
+      if (status === "ok" || status === "healthy") return "ok";
+      return "warn";
+    }
+
     async function refreshHealth() {
       try {
         const h = await callApi("/health");
-        $("health").textContent = `${h.status} v${h.version}`;
-        $("health").className = "mono ok";
+        const pill = $("health-pill");
+        pill.textContent = `${h.status} · v${h.version}`;
+        pill.className = `status-pill mono ${healthStatusClass(h.status)}`;
       } catch (e) {
-        $("health").textContent = `error: ${e.message}`;
-        $("health").className = "mono warn";
+        const pill = $("health-pill");
+        pill.textContent = `health error`;
+        pill.className = "status-pill mono warn";
+        createLog("Health check failed", { error: e.message }, "bad");
       }
+    }
+
+    function renderTaskDescription(taskId) {
+      const task = taskList.find((t) => t.task_id === taskId);
+      $("task-desc").textContent = task ? task.description : "Task description unavailable.";
     }
 
     async function loadTasks() {
       try {
         const tasks = await callApi("/tasks");
+        taskList = Array.isArray(tasks) ? tasks : [];
         const sel = $("task");
         sel.innerHTML = "";
-        for (const t of tasks) {
+        for (const t of taskList) {
           const opt = document.createElement("option");
           opt.value = t.task_id;
           opt.textContent = `${t.task_id} (${t.difficulty})`;
           sel.appendChild(opt);
         }
-        log("Loaded tasks", tasks);
+        $("metric-tasks").textContent = String(taskList.length);
+        renderTaskDescription(sel.value);
+        createLog("Tasks loaded", taskList, "good");
       } catch (e) {
-        log("Task load failed", {error: e.message});
+        createLog("Task loading failed", { error: e.message }, "bad");
       }
+    }
+
+    function statusDotClass(status) {
+      if (status === "healthy") return "healthy";
+      if (status === "degraded") return "degraded";
+      if (status === "down") return "down";
+      return "";
+    }
+
+    function fmtPct(v) {
+      return `${Number(v || 0).toFixed(1)}%`;
+    }
+
+    function fmtMs(v) {
+      return `${Number(v || 0).toFixed(0)}ms`;
+    }
+
+    function fmtErr(v) {
+      return Number(v || 0).toFixed(4);
+    }
+
+    function updateMeta({ taskId = "—", step = "—", remaining = "—", reward = "—" } = {}) {
+      $("meta-task").textContent = `task: ${taskId}`;
+      $("meta-step").textContent = `step: ${step}`;
+      $("meta-remaining").textContent = `remaining: ${remaining}`;
+      $("meta-reward").textContent = `last reward: ${reward}`;
+      if (step !== "—") $("metric-step").textContent = String(step);
+      if (remaining !== "—") $("metric-remain").textContent = String(remaining);
+    }
+
+    function renderObservation(obs, taskId = "—", rewardVal = null) {
+      lastObservation = obs;
+      $("obs-updated").textContent = `updated ${now()}`;
+      $("alert").textContent = obs?.alert_summary || "No alert summary in observation.";
+      updateMeta({
+        taskId,
+        step: obs?.step_number ?? "—",
+        remaining: obs?.steps_remaining ?? "—",
+        reward: rewardVal === null ? "—" : Number(rewardVal).toFixed(4)
+      });
+
+      const container = $("service-health");
+      const rows = [];
+      rows.push(`
+        <div class="health-row head">
+          <div>Service</div><div>Status</div><div>CPU</div><div>p99</div><div>Error rate</div>
+        </div>
+      `);
+      const map = obs?.service_health || {};
+      const services = Object.keys(map);
+      if (!services.length) {
+        container.innerHTML = `<div class="empty">Observation has no service health data.</div>`;
+        return;
+      }
+      for (const name of services) {
+        const h = map[name] || {};
+        rows.push(`
+          <div class="health-row">
+            <div class="svc"><span class="dot ${statusDotClass(h.status)}"></span>${name}</div>
+            <div>${h.status || "unknown"}</div>
+            <div>${fmtPct(h.cpu_pct)}</div>
+            <div>${fmtMs(h.p99_ms)}</div>
+            <div class="mono">${fmtErr(h.error_rate)}</div>
+          </div>
+        `);
+      }
+      container.innerHTML = rows.join("");
     }
 
     async function resetSession() {
       try {
-        const body = {task_id: $("task").value};
-        if ($("seed").value.trim() !== "") body.seed = Number($("seed").value.trim());
+        const taskId = $("task").value;
+        const body = { task_id: taskId };
+        const seedTxt = $("seed").value.trim();
+        if (seedTxt) body.seed = Number(seedTxt);
         const data = await callApi("/reset", {
           method: "POST",
-          headers: {"Content-Type": "application/json"},
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body)
         });
         sessionId = data.session_id;
         $("session-id").textContent = sessionId;
-        log("Session reset", data);
+        renderTaskDescription(taskId);
+        renderObservation(data.observation, taskId, null);
+        createLog("Session reset", data, "good");
       } catch (e) {
-        log("Reset failed", {error: e.message});
+        createLog("Reset failed", { error: e.message }, "bad");
       }
     }
 
     async function runStep() {
-      if (!sessionId) return log("Step blocked", {error: "Reset a session first"});
+      if (!sessionId) {
+        createLog("Step blocked", { error: "Reset a session first." }, "warn");
+        return;
+      }
       try {
         const action = $("action").value;
-        const params = JSON.parse($("params").value);
+        const params = JSON.parse($("params").value || "{}");
         const data = await callApi("/step", {
           method: "POST",
-          headers: {"Content-Type": "application/json"},
-          body: JSON.stringify({session_id: sessionId, action: {action, params}})
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ session_id: sessionId, action: { action, params } })
         });
-        log(`Step: ${action}`, data);
+        renderObservation(data.observation, data?.info?.task_id || $("task").value, data?.reward?.value);
+        createLog(`Step: ${action}`, data, toneFromReward(data?.reward?.value));
       } catch (e) {
-        log("Step failed", {error: e.message});
+        createLog("Step failed", { error: e.message }, "bad");
+      }
+    }
+
+    async function fetchState() {
+      if (!sessionId) {
+        createLog("State blocked", { error: "Reset a session first." }, "warn");
+        return;
+      }
+      try {
+        const data = await callApi(`/state/${sessionId}`);
+        createLog("Session state", data, "warn");
+      } catch (e) {
+        createLog("State fetch failed", { error: e.message }, "bad");
       }
     }
 
     async function fetchTimeline() {
-      if (!sessionId) return log("Timeline blocked", {error: "Reset a session first"});
+      if (!sessionId) {
+        createLog("Timeline blocked", { error: "Reset a session first." }, "warn");
+        return;
+      }
       try {
         const data = await callApi(`/timeline/${sessionId}`);
-        log("Timeline", data);
+        createLog("Timeline", data, "good");
       } catch (e) {
-        log("Timeline failed", {error: e.message});
+        createLog("Timeline failed", { error: e.message }, "bad");
       }
     }
 
     async function fetchRootCause() {
-      if (!sessionId) return log("Root-cause blocked", {error: "Reset a session first"});
+      if (!sessionId) {
+        createLog("Root-cause blocked", { error: "Reset a session first." }, "warn");
+        return;
+      }
       try {
         const data = await callApi(`/root-cause-tree/${sessionId}`);
-        log("Root-cause tree", data);
+        createLog("Root cause tree", data, "good");
       } catch (e) {
-        log("Root-cause failed", {error: e.message});
+        createLog("Root-cause failed", { error: e.message }, "bad");
       }
     }
 
     async function askIncident() {
-      if (!sessionId) return log("Ask blocked", {error: "Reset a session first"});
+      if (!sessionId) {
+        createLog("Ask blocked", { error: "Reset a session first." }, "warn");
+        return;
+      }
       const question = $("question").value.trim();
-      if (!question) return log("Ask blocked", {error: "Type a question first"});
+      if (!question) {
+        createLog("Ask blocked", { error: "Type a question first." }, "warn");
+        return;
+      }
       try {
         const data = await callApi("/ask_incident", {
           method: "POST",
-          headers: {"Content-Type": "application/json"},
-          body: JSON.stringify({session_id: sessionId, question})
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ session_id: sessionId, question })
         });
-        log("Incident answer", data);
+        createLog("Incident answer", data, "good");
       } catch (e) {
-        log("Ask failed", {error: e.message});
+        createLog("Ask failed", { error: e.message }, "bad");
       }
     }
 
+    function setActionTemplate(actionName) {
+      $("params").value = JSON.stringify(samples[actionName], null, 2);
+    }
+
     $("action").addEventListener("change", (e) => {
-      $("params").value = JSON.stringify(samples[e.target.value], null, 2);
+      setActionTemplate(e.target.value);
     });
+
+    $("params").addEventListener("keydown", (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+        e.preventDefault();
+        runStep();
+      }
+    });
+
+    $("task").addEventListener("change", (e) => {
+      renderTaskDescription(e.target.value);
+    });
+
     $("btn-health").addEventListener("click", refreshHealth);
     $("btn-tasks").addEventListener("click", loadTasks);
+    $("btn-state").addEventListener("click", fetchState);
     $("btn-reset").addEventListener("click", resetSession);
     $("btn-step").addEventListener("click", runStep);
     $("btn-timeline").addEventListener("click", fetchTimeline);
     $("btn-root-cause").addEventListener("click", fetchRootCause);
     $("btn-ask").addEventListener("click", askIncident);
 
-    $("params").value = JSON.stringify(samples.query_logs, null, 2);
+    setActionTemplate("query_logs");
     refreshHealth();
     loadTasks();
+    updateMeta();
   </script>
 </body>
 </html>
