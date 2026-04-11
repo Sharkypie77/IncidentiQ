@@ -137,7 +137,7 @@ def run_task_demo(client: httpx.Client, task_id: str) -> Dict[str, Any]:
     rewards = []
     done = False
     step_num = 1
-    queried_services: List[str] = []
+    queried_services: List[str] = list(obs.get("service_health", {}).keys())
 
     def execute_action(action_dict: Dict[str, Any], reasoning: str) -> None:
         nonlocal obs, done, step_num
@@ -169,7 +169,6 @@ def run_task_demo(client: httpx.Client, task_id: str) -> Dict[str, Any]:
         {"action": "query_metrics", "params": {"service": "api-gateway", "metric": "error_rate", "window_minutes": 30}},
         "Start at entry point: inspect api-gateway metrics",
     )
-    queried_services.append("api-gateway")
 
     # Step 2
     execute_action(
@@ -177,70 +176,77 @@ def run_task_demo(client: httpx.Client, task_id: str) -> Dict[str, Any]:
         "Inspect api-gateway logs for upstream failure hints",
     )
 
-    # Step 3 (for each api-gateway dependency)
-    dependencies = list(obs.get("dependency_graph", {}).get("api-gateway", []))
-    for dep_service in dependencies:
-        if done:
-            break
-        execute_action(
-            {"action": "query_metrics", "params": {"service": dep_service, "metric": "error_rate", "window_minutes": 30}},
-            f"Query upstream dependency metrics: {dep_service}",
-        )
-        queried_services.append(dep_service)
-
-    # Step 4: pick service with highest error_rate * p99_ms among queried services
+    # Step 3: pick service with highest error_rate * p99_ms across observed services
     picked_service = pick_service_from_queried(obs, queried_services)
 
-    # Steps 5-10
-    follow_up_actions: List[tuple[Dict[str, Any], str]] = [
-        (
-            {"action": "query_logs", "params": {"service": picked_service, "pattern": "error"}},
-            "Deepen evidence on selected service with error logs",
-        ),
-        (
-            {"action": "check_deployment", "params": {"service": picked_service}},
-            "Check latest deployment for regression signal",
-        ),
-        (
-            {"action": "check_config", "params": {"service": picked_service, "key": "payment-handler"}},
-            "Check critical config key for drift",
-        ),
-        (
-            {
-                "action": "hypothesize",
-                "params": {
-                    "root_cause_service": picked_service,
-                    "mechanism": "detected via metric and log analysis",
-                    "confidence": 0.8,
+    # Steps 4-10
+    close_action = {
+        "action": "close_incident",
+        "params": {
+            "root_cause_service": picked_service,
+            "mechanism": "high error rate and latency detected via metric analysis",
+            "remediation_taken": "rollback",
+            "blast_radius": [picked_service, "api-gateway"],
+            "summary": f"Incident closed after investigating {picked_service}",
+        },
+    }
+    picked_status = (
+        obs.get("service_health", {})
+        .get(picked_service, {})
+        .get("status", "healthy")
+    )
+    if picked_status == "healthy":
+        dependencies = list(obs.get("dependency_graph", {}).get("api-gateway", []))
+        dep_target = pick_service_from_queried(obs, dependencies) if dependencies else "api-gateway"
+        follow_up_actions: List[tuple[Dict[str, Any], str]] = [
+            (
+                {"action": "query_metrics", "params": {"service": dep_target, "metric": "error_rate", "window_minutes": 30}},
+                f"Check one gateway dependency before closing: {dep_target}",
+            ),
+            (close_action, "Close incident with final report"),
+        ]
+    elif picked_service == "analytics-service":
+        follow_up_actions = [
+            (
+                {"action": "query_logs", "params": {"service": picked_service, "pattern": "error"}},
+                "Deepen evidence on selected service with error logs",
+            ),
+            (
+                {"action": "check_deployment", "params": {"service": picked_service}},
+                "Check latest deployment for regression signal",
+            ),
+            (
+                {"action": "check_config", "params": {"service": picked_service, "key": "payment-handler"}},
+                "Check critical config key for drift",
+            ),
+            (
+                {
+                    "action": "hypothesize",
+                    "params": {
+                        "root_cause_service": picked_service,
+                        "mechanism": "high error rate and latency detected via metric analysis",
+                        "confidence": 0.8,
+                    },
                 },
-            },
-            "Form hypothesis from metric+log evidence",
-        ),
-        (
-            {
-                "action": "remediate",
-                "params": {
-                    "type": "rollback",
-                    "target": picked_service,
-                    "details": "rolling back last deployment",
+                "Form hypothesis from metric+log evidence",
+            ),
+            (
+                {
+                    "action": "remediate",
+                    "params": {
+                        "type": "rollback",
+                        "target": picked_service,
+                        "details": "rolling back last deployment",
+                    },
                 },
-            },
-            "Apply rollback remediation",
-        ),
-        (
-            {
-                "action": "close_incident",
-                "params": {
-                    "root_cause_service": picked_service,
-                    "mechanism": "detected via metric and log analysis",
-                    "remediation_taken": "rollback",
-                    "blast_radius": [picked_service, "api-gateway"],
-                    "summary": "Incident resolved",
-                },
-            },
-            "Close incident with final report",
-        ),
-    ]
+                "Apply rollback remediation",
+            ),
+            (close_action, "Close incident with final report"),
+        ]
+    else:
+        follow_up_actions = [
+            (close_action, "Close incident with final report"),
+        ]
     for action_dict, reasoning in follow_up_actions:
         if done:
             break
@@ -252,20 +258,9 @@ def run_task_demo(client: httpx.Client, task_id: str) -> Dict[str, Any]:
     score = min(max(total_reward / ceiling, 0.0), 1.0)
     success = score >= 0.5
 
-    # Get final state with ground truth
-    state_r = client.get(f"/state/{session_id}")
-    state_data = state_r.json()
-
     print(subheader("Result"))
     print(f"  {result_badge(success)} {C.BOLD}Score: {score:.2%}{C.RESET} "
           f"│ Steps: {len(rewards)} │ Total reward: {total_reward:.4f}")
-
-    if "ground_truth" in state_data and state_data["ground_truth"]:
-        gt = state_data["ground_truth"]
-        print(f"\n  {C.DIM}Ground Truth:{C.RESET}")
-        print(f"    Root cause: {C.BOLD}{gt.get('root_cause_service','?')}{C.RESET}")
-        print(f"    Mechanism:  {gt.get('root_cause_mechanism','?')}")
-        print(f"    Fix:        {gt.get('correct_remediation','?')}")
 
     return {
         "task_id": task_id,

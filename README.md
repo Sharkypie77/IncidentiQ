@@ -142,18 +142,18 @@ Terminal rewards are clamped to `[0.0, 0.60]`.
 | Terminal reward clamp | `[0.0, 0.60]` | `env/reward.py` |
 | Final task score clamp | `[0.0, 1.0]` | task graders + `run_demo.py` + `inference.py` |
 | Benchmark success rate | `60% (3/5)` | `benchmark_results.json` |
-| Average benchmark score | `0.5608` | `benchmark_results.json` |
-| Average benchmark steps | `10.0` | `benchmark_results.json` |
+| Average benchmark score | `0.4394` | `benchmark_results.json` |
+| Average benchmark steps | `4.4` | `benchmark_results.json` |
 | Reward/score tests | `3 passed` | `test_step_reward_range`, `test_graders_return_valid_float`, `test_perfect_agent_scores_high` |
 ### Per-task Reward Snapshot (Rule-based Policy)
 | Task | Steps | Total Reward | Score |
 |---|---:|---:|---:|
-| `task1_cpu_saturation` | 10 | 1.0100 | 0.9619 |
-| `task2_cascading_failure` | 10 | 0.8750 | 0.8333 |
-| `task3_silent_corruption` | 10 | 0.6900 | 0.6571 |
-| `task4_db_connection_limit` | 10 | 0.3550 | 0.3381 |
-| `task5_memory_leak_analytics` | 10 | 0.0140 | 0.0133 |
-| **Average** | **10.0** | **0.5888** | **0.5608** |
+| `task1_cpu_saturation` | 3 | 0.7000 | 0.6667 |
+| `task2_cascading_failure` | 3 | 0.5900 | 0.5619 |
+| `task3_silent_corruption` | 4 | 0.1700 | 0.1619 |
+| `task4_db_connection_limit` | 4 | 0.2350 | 0.2238 |
+| `task5_memory_leak_analytics` | 8 | 0.6120 | 0.5829 |
+| **Average** | **4.4** | **0.4614** | **0.4394** |
 ## API Reference
 | Method | Path | Purpose |
 |---|---|---|
@@ -186,11 +186,11 @@ shown separately.
 
 | Task | Difficulty | inference.py (LLM) | run_demo.py (rule-based) |
 |------|-----------|-------------------|--------------------------|
-| task1_cpu_saturation | Easy | 0.68 | 0.9619 |
-| task2_cascading_failure | Medium | 0.77 | 0.8333 |
-| task3_silent_corruption | Hard | 0.00* | 0.6571 |
-| task4_db_connection_limit | Medium | — | 0.3381 |
-| task5_memory_leak_analytics | Medium-Hard | — | 0.0133 |
+| task1_cpu_saturation | Easy | 0.68 | 0.6667 |
+| task2_cascading_failure | Medium | 0.77 | 0.5619 |
+| task3_silent_corruption | Hard | 0.00* | 0.1619 |
+| task4_db_connection_limit | Medium | — | 0.2238 |
+| task5_memory_leak_analytics | Medium-Hard | — | 0.5829 |
 
 *Task 3 LLM score under investigation — partial credit path bug.
 ## Running the Project

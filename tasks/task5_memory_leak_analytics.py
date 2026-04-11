@@ -66,6 +66,15 @@ class Task5MemoryLeakAnalytics(BaseTask):
             rng=rng,
         )
 
+        # Keep the twist obvious but realistic: elevated latency + error rate on analytics.
+        analytics = service_states["analytics-service"]
+        analytics.status = "degraded"
+        analytics.cpu_pct = 44.0 + rng.uniform(-2.0, 2.0)
+        analytics.mem_pct = min(100.0, 95.0 + rng.uniform(-1.5, 1.5))
+        analytics.p50_ms = 210.0 + rng.uniform(-15.0, 15.0)
+        analytics.p99_ms = 860.0 + rng.uniform(-80.0, 80.0)
+        analytics.error_rate = 0.012 + rng.uniform(0.0, 0.003)
+
         # Red herring: postgres having slow queries (routine vacuum/maintenance)
         pg = service_states["postgres"]
         pg.p99_ms = pg.p99_ms * 1.5

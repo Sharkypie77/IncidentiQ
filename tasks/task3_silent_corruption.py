@@ -58,14 +58,23 @@ class Task3SilentCorruption(BaseTask):
         for svc in service_states.values():
             svc.status = "healthy"
 
-        # Red herring: analytics-service memory elevated
-        analytics = service_states["analytics-service"]
-        analytics.mem_pct = min(100.0, analytics.mem_pct + 15)
+        # Keep the anomaly subtle: order-service is only mildly noisier than normal.
+        order = service_states["order-service"]
+        order.error_rate = 0.0042 + rng.uniform(-0.0002, 0.0002)
+        order.p50_ms = 47.0 + rng.uniform(-2.0, 2.0)
+        order.p99_ms = 130.0 + rng.uniform(-8.0, 8.0)
 
-        # Red herring: postgres slightly elevated query times (routine maintenance)
+        # Red herring: analytics-service looks slightly noisy, but still healthy.
+        analytics = service_states["analytics-service"]
+        analytics.mem_pct = min(100.0, 67.0 + rng.uniform(-2.0, 2.0))
+        analytics.error_rate = 0.0046 + rng.uniform(-0.0002, 0.0002)
+        analytics.p50_ms = 90.0 + rng.uniform(-8.0, 8.0)
+        analytics.p99_ms = 180.0 + rng.uniform(-10.0, 10.0)
+
+        # Red herring: postgres has mild maintenance jitter.
         pg = service_states["postgres"]
-        pg.p99_ms = pg.p99_ms * 1.15
-        pg.p50_ms = pg.p50_ms * 1.10
+        pg.p99_ms = 22.0 + rng.uniform(-2.0, 2.0)
+        pg.p50_ms = 6.0 + rng.uniform(-0.5, 0.5)
 
         alert_summary = (
             "Billing reconciliation discrepancy detected: 3.1% transaction mismatch. "
@@ -116,7 +125,8 @@ class Task3SilentCorruption(BaseTask):
                 close_action = entry
                 break
 
-        if close_action is None:
+        close_action_found = close_action is not None
+        if not close_action_found:
             # Partial credit from investigation trail
             score = 0.0
             queried_root = False
@@ -140,7 +150,14 @@ class Task3SilentCorruption(BaseTask):
                 score = max(score, 0.10)
             if correct_hypothesis:
                 score = max(score, 0.10)
-            return max(0.0, min(score, 0.25))
+            investigated = any(
+                a.get("action") in ["query_logs", "query_metrics", "check_config", "check_deployment"]
+                and a.get("params", {}).get("service") == "order-service"
+                for a in action_log
+            )
+            if investigated:
+                score += 0.10
+            return min(max(score, 0.0), 1.0)
 
         params = close_action.get("params", {})
         score = 0.0

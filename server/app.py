@@ -377,7 +377,7 @@ async def root() -> RootResponse:
 
 @app.get("/health", response_model=HealthResponse)
 async def health() -> HealthResponse:
-    return HealthResponse(status="healthy", version="1.1.0")
+    return HealthResponse(status="ok", version="1.1.0")
 
 
 @app.get("/metadata", response_model=MetadataResponse)
@@ -451,7 +451,7 @@ async def step(body: StepRequest) -> StepResult:
     return result
 
 
-@app.get("/state", response_model=StateResponse)
+@app.get("/state", response_model=StateResponse, response_model_exclude_none=True)
 async def state_root() -> StateResponse:
     """Return state for the most recent session (OpenEnv runtime contract)."""
     if env.last_session_id and env.last_session_id in env.state:
@@ -460,7 +460,7 @@ async def state_root() -> StateResponse:
     return StateResponse(task_id="", step_count=0, max_steps=0, done=False, service_states={}, cumulative_reward=0.0)
 
 
-@app.get("/state/{session_id}", response_model=StateResponse)
+@app.get("/state/{session_id}", response_model=StateResponse, response_model_exclude_none=True)
 async def state(session_id: str) -> StateResponse:
     try:
         data = env.get_state(session_id)
