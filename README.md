@@ -140,7 +140,7 @@ Terminal rewards are clamped to `[0.0, 0.60]`.
 |---|---|---|
 | Step reward clamp | `[-0.15, +0.10]` | `env/reward.py` |
 | Terminal reward clamp | `[0.0, 0.60]` | `env/reward.py` |
-| Final task score clamp | `(0.0, 1.0)` | task graders (strict open interval) |
+| Final task score clamp | `(0.0, 1.0)` | task graders + `run_demo.py` + `inference.py` (strict open interval) |
 | Benchmark success rate | `60% (3/5)` | `benchmark_results.json` |
 | Average benchmark score | `0.4394` | `benchmark_results.json` |
 | Average benchmark steps | `4.4` | `benchmark_results.json` |

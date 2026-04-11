@@ -24,6 +24,7 @@ from typing import Any, Dict, List
 import httpx
 
 ENV_URL = "http://localhost:7860"
+SCORE_EPS = 1e-6
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
@@ -255,7 +256,7 @@ def run_task_demo(client: httpx.Client, task_id: str) -> Dict[str, Any]:
     # Results
     total_reward = sum(rewards)
     ceiling = 1.05
-    score = min(max(total_reward / ceiling, 0.0), 1.0)
+    score = min(max(total_reward / ceiling, SCORE_EPS), 1.0 - SCORE_EPS)
     success = score >= 0.5
 
     print(subheader("Result"))

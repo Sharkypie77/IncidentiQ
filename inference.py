@@ -27,6 +27,7 @@ if not HF_TOKEN:
 
 MAX_STEPS = 10
 SUCCESS_SCORE_THRESHOLD = 0.6
+SCORE_EPS = 1e-6
 STEP_DELAY_SECONDS = float(os.getenv("STEP_DELAY_SECONDS", "0"))
 LLM_TIMEOUT_SECONDS = 30
 GLOBAL_TIMEOUT_MINUTES = 25
@@ -426,7 +427,7 @@ def main() -> None:
                 # 4. Score and success
                 total_reward = sum(rewards)
                 ceiling = MAX_TOTAL_REWARD.get(task_id, 0.85)
-                score = min(max(total_reward / ceiling, 0.0), 1.0)
+                score = min(max(total_reward / ceiling, SCORE_EPS), 1.0 - SCORE_EPS)
                 success = score >= SUCCESS_SCORE_THRESHOLD
             finally:
                 if start_logged:
