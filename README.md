@@ -172,22 +172,56 @@ Opening the server in a browser (`http://localhost:7860`) gives you a visual con
 
 ## 🚀 How to Run
 
-### Quick Start (Local)
+### Option 1: Use the deployed HF Space (no local server)
 
-```bash
-pip install -r requirements.txt
-uvicorn server.app:app --host 0.0.0.0 --port 7860
-# Open http://localhost:7860 in your browser
+```powershell
+# LLM inference against the live Space
+$env:HF_TOKEN = "your-nvidia-nim-api-key"
+$env:ENV_URL  = "https://Zewx77-incidentiq.hf.space"
+.venv311\Scripts\python.exe inference.py
 ```
 
-### Using Docker
+```powershell
+# Rule-based demo against the live Space
+$env:ENV_URL = "https://Zewx77-incidentiq.hf.space"
+.venv311\Scripts\python.exe run_demo.py
+```
+
+Open the UI directly: **https://huggingface.co/spaces/Zewx77/incidentiq/**
+
+### Option 2: Run locally (Python)
+
+```powershell
+py -3.11 -m venv .venv311
+.venv311\Scripts\pip install -r requirements.txt
+.venv311\Scripts\uvicorn.exe server.app:app --host 0.0.0.0 --port 7860
+```
+
+Then open **http://localhost:7860** in your browser.
+
+### Option 3: Run with Docker
 
 ```bash
 docker build -t incidentiq .
 docker run -p 7860:7860 incidentiq
 ```
 
-### Running the AI Agent
+### Quick API tests (live Space)
+
+```powershell
+# Check health
+curl https://Zewx77-incidentiq.hf.space/health
+
+# List tasks
+curl https://Zewx77-incidentiq.hf.space/tasks
+
+# Start an episode
+curl -X POST https://Zewx77-incidentiq.hf.space/reset `
+  -H "Content-Type: application/json" `
+  -d '{"task_id":"task1_cpu_saturation"}'
+```
+
+### Running the AI Agent (local server)
 
 ```bash
 API_BASE_URL=https://integrate.api.nvidia.com/v1 HF_TOKEN=your-key python inference.py

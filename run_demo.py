@@ -3,11 +3,14 @@
 IncidentIQ Demo — One-command demonstration of the environment.
 
 Usage:
-    # Start the server first:
+    # Start the server first (local mode):
     uvicorn server.app:app --port 7860
 
     # Then run:
     python run_demo.py
+
+    # Or run against a deployed server:
+    ENV_URL=https://Zewx77-incidentiq.hf.space python run_demo.py
 
 This script runs a deterministic rule-based agent through all 5 tasks,
 showing step-by-step investigation, decisions, and final scoring.
@@ -17,13 +20,14 @@ No LLM or API key required.
 from __future__ import annotations
 
 import json
+import os
 import sys
 import time
 from typing import Any, Dict, List
 
 import httpx
 
-ENV_URL = "http://localhost:7860"
+ENV_URL = os.getenv("ENV_URL", "http://localhost:7860")
 SCORE_EPS = 1e-6
 
 if hasattr(sys.stdout, "reconfigure"):
