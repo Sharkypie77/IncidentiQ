@@ -174,6 +174,10 @@ def _extract_last_action_error(last_action_result: Optional[str]) -> Optional[st
     return None
 
 
+def log_inference(msg: str) -> None:
+    print(f"[inference] {msg}", flush=True)
+
+
 def log_start(task: str, env: str, model: str) -> None:
     print(f"[START] task={task} env={env} model={model}", flush=True)
 
@@ -188,10 +192,11 @@ def log_step(step: int, action: str, reward: float, done: bool, error: Optional[
     )
 
 
-def log_end(success: bool, steps: int, rewards: List[float]) -> None:
+def log_end(success: bool, steps: int, score: float, rewards: List[float]) -> None:
     rewards_str = ",".join(f"{r:.2f}" for r in rewards)
     print(
-        f"[END] success={_bool_str(success)} steps={steps} rewards={rewards_str}",
+        f"[END] success={_bool_str(success)} steps={steps} "
+        f"score={score:.3f} rewards={rewards_str}",
         flush=True,
     )
 
@@ -309,9 +314,27 @@ def parse_action(raw: str) -> Optional[dict]:
 
 # ── Main loop ──────────────────────────────────────────────────────────────
 
+def _fetch_grader_score(http: httpx.Client, session_id: str) -> float:
+    """Fetch the grader score from /state after episode ends."""
+    try:
+        r = http.get(f"/state/{session_id}")
+        r.raise_for_status()
+        data = r.json()
+        score = float(data.get("cumulative_reward", 0.0))
+        # Ensure strict (0, 1)
+        return max(SCORE_EPS, min(score, 1.0 - SCORE_EPS))
+    except Exception:
+        return SCORE_EPS
+
+
 def main() -> None:
     client = OpenAI(base_url=API_BASE_URL, api_key=HF_TOKEN)
     http = httpx.Client(base_url=ENV_URL, timeout=15.0)
+
+    log_inference(f"Base URL: {API_BASE_URL}")
+    log_inference(f"Model: {MODEL_NAME}")
+
+    task_scores: Dict[str, float] = {}
 
     try:
         for task_id in TASKS:
@@ -322,6 +345,8 @@ def main() -> None:
             steps_taken = 0
             success = False
             start_logged = False
+            session_id = ""
+            grader_score = SCORE_EPS
 
             try:
                 # 1. Reset
@@ -335,6 +360,7 @@ def main() -> None:
                 # 2. Log start
                 log_start(task=task_id, env="incidentiq", model=MODEL_NAME)
                 start_logged = True
+                log_inference(f"Task started: {task_id}")
 
                 history: List[dict] = []
                 done = False
@@ -424,14 +450,25 @@ def main() -> None:
                     if done:
                         break
 
-                # 4. Score and success
-                total_reward = sum(rewards)
-                ceiling = MAX_TOTAL_REWARD.get(task_id, 0.85)
-                score = min(max(total_reward / ceiling, SCORE_EPS), 1.0 - SCORE_EPS)
-                success = score >= SUCCESS_SCORE_THRESHOLD
+                # 4. Fetch grader score from /state endpoint
+                grader_score = _fetch_grader_score(http, session_id)
+                success = grader_score >= SUCCESS_SCORE_THRESHOLD
+                task_scores[task_id] = grader_score
+                log_inference(f"Episode done. Final grader score: {grader_score:.4f}")
+
             finally:
                 if start_logged:
-                    log_end(success, steps_taken, rewards)
+                    log_end(success, steps_taken, grader_score, rewards)
+
+        # 5. Print baseline results summary
+        print("", flush=True)
+        log_inference("BASELINE RESULTS")
+        for tid, sc in task_scores.items():
+            log_inference(f"  {tid}: {sc:.4f}")
+        if task_scores:
+            avg = sum(task_scores.values()) / len(task_scores)
+            log_inference(f"  Average: {avg:.4f}")
+
     finally:
         http.close()
 

@@ -31,7 +31,7 @@ from env.state_machine import (
     GroundTruth,
     ServiceState,
 )
-from tasks.base import BaseTask
+from tasks.base import BaseTask, STRICT_SCORE_EPS
 from tasks.task1_cpu_saturation import Task1CpuSaturation
 from tasks.task2_cascading_failure import Task2CascadingFailure
 from tasks.task3_silent_corruption import Task3SilentCorruption
@@ -299,9 +299,13 @@ class IncidentIQEnv:
 
         if ep.done:
             observation = self._build_observation(ep)
+            if ep.task_id in self.tasks:
+                done_score = self.tasks[ep.task_id].grade(ep)
+            else:
+                done_score = self._clamp_score(ep.cumulative_reward)
             return StepResult(
                 observation=observation,
-                reward=Reward(value=0.0, reason="episode already done", cumulative=ep.cumulative_reward),
+                reward=Reward(value=0.0, reason="episode already done", cumulative=round(done_score, 6)),
                 done=True,
                 info={"task_id": ep.task_id, "step_count": ep.step_count},
             )
@@ -351,16 +355,29 @@ class IncidentIQEnv:
         if terminal_reason:
             reason = f"{step_reason}; TERMINAL: {terminal_reason}"
 
+        # When the episode ends, report the proper grade score (clamped to
+        # strict (0, 1)) instead of the raw cumulative reward, so the
+        # platform always sees a valid task score.
+        if ep.done and ep.task_id in self.tasks:
+            reported_cumulative = self.tasks[ep.task_id].grade(ep)
+        else:
+            reported_cumulative = self._clamp_score(ep.cumulative_reward)
+
         return StepResult(
             observation=observation,
             reward=Reward(
                 value=round(total_reward, 4),
                 reason=reason,
-                cumulative=round(ep.cumulative_reward, 4),
+                cumulative=round(reported_cumulative, 6),
             ),
             done=ep.done,
             info={"task_id": ep.task_id, "step_count": ep.step_count},
         )
+
+    @staticmethod
+    def _clamp_score(value: float) -> float:
+        """Clamp a value to the strict open interval (0, 1)."""
+        return max(STRICT_SCORE_EPS, min(float(value), 1.0 - STRICT_SCORE_EPS))
 
     def get_state(self, session_id: str) -> dict:
         """Return the full episode state as a JSON-serializable dict."""
@@ -368,6 +385,13 @@ class IncidentIQEnv:
             if session_id not in self.state:
                 raise KeyError(f"Unknown session_id: {session_id}")
             ep = self.state[session_id]
+
+        # When done, compute the proper grade score via the task grader;
+        # otherwise report the raw cumulative reward clamped to (0, 1).
+        if ep.done and ep.task_id in self.tasks:
+            score = self.tasks[ep.task_id].grade(ep)
+        else:
+            score = self._clamp_score(ep.cumulative_reward)
 
         result: Dict[str, Any] = {
             "task_id": ep.task_id,
@@ -387,7 +411,7 @@ class IncidentIQEnv:
                 }
                 for name, s in ep.service_states.items()
             },
-            "cumulative_reward": round(ep.cumulative_reward, 4),
+            "cumulative_reward": round(score, 6),
             "action_log_length": len(ep.action_log),
         }
 
