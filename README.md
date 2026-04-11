@@ -186,13 +186,11 @@ shown separately.
 
 | Task | Difficulty | inference.py (LLM) | run_demo.py (rule-based) |
 |------|-----------|-------------------|--------------------------|
-| task1_cpu_saturation | Easy | 0.68 | 0.6667 |
-| task2_cascading_failure | Medium | 0.77 | 0.5619 |
-| task3_silent_corruption | Hard | 0.00* | 0.1619 |
-| task4_db_connection_limit | Medium | — | 0.2238 |
-| task5_memory_leak_analytics | Medium-Hard | — | 0.5829 |
-
-*Task 3 LLM score under investigation — partial credit path bug.
+| task1_cpu_saturation | Easy | 0.7238 | 0.6667 |
+| task2_cascading_failure | Medium | 0.6273 | 0.5619 |
+| task3_silent_corruption | Hard | 0.8476 | 0.1619 |
+| task4_db_connection_limit | Medium | 0.7048 | 0.2238 |
+| task5_memory_leak_analytics | Medium-Hard | 0.7714 | 0.5829 |
 ## Running the Project
 ### Environment Variables
 | Variable | Default | Required | Description |
