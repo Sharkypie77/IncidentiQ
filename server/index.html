@@ -1,32 +1,28 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>IncidentIQ Console</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500;700&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg: #f5f2eb;
-      --bg-soft: #fdfbf7;
-      --ink: #1b1f26;
-      --muted: #6b7280;
-      --line: rgba(18, 25, 38, 0.13);
-      --line-strong: rgba(18, 25, 38, 0.2);
-      --card: #ffffff;
-      --ok: #1f7a4f;
-      --warn: #9b5f00;
-      --bad: #8b1a1a;
-      --brand: #193d34;
-      --brand-soft: #e7f3ef;
-      --accent: #2f7c67;
-      --amber-soft: #fdf1df;
-      --red-soft: #fbe6e6;
-      --shadow: 0 2px 14px rgba(17, 24, 39, 0.08);
-      --shadow-lg: 0 12px 36px rgba(17, 24, 39, 0.12);
-      --radius: 14px;
+      --cream: #f9f6f0;
+      --cream-dark: #f0ebe1;
+      --ink: #1a1410;
+      --ink-light: #4a4035;
+      --ink-muted: #8a7f72;
+      --forest: #1b4332;
+      --forest-light: #2d6a4f;
+      --forest-pale: #d8f3dc;
+      --amber: #b45309;
+      --amber-pale: #fef3c7;
+      --red-pale: #fee2e2;
+      --red: #991b1b;
+      --border: rgba(26, 20, 16, 0.1);
+      --border-strong: rgba(26, 20, 16, 0.18);
+      --shadow: 0 2px 20px rgba(26, 20, 16, 0.08);
+      --shadow-lg: 0 8px 48px rgba(26, 20, 16, 0.12);
     }
 
     * {
@@ -35,15 +31,16 @@
       padding: 0;
     }
 
+    html {
+      scroll-behavior: smooth;
+    }
+
     body {
-      font-family: Inter, Arial, sans-serif;
+      font-family: "DM Sans", sans-serif;
+      background: var(--cream);
       color: var(--ink);
-      background:
-        radial-gradient(circle at 8% -5%, rgba(47, 124, 103, 0.08), transparent 30%),
-        radial-gradient(circle at 85% 10%, rgba(25, 61, 52, 0.08), transparent 32%),
-        var(--bg);
-      min-height: 100vh;
-      line-height: 1.5;
+      line-height: 1.65;
+      overflow-x: hidden;
     }
 
     body::after {
@@ -51,756 +48,1643 @@
       position: fixed;
       inset: 0;
       pointer-events: none;
-      opacity: 0.02;
-      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 160 160' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-      z-index: 999;
+      opacity: 0.025;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      background-size: 200px;
+      z-index: 9999;
+    }
+
+    code {
+      font-family: "DM Mono", monospace;
+      font-size: 0.86em;
+      background: var(--cream-dark);
+      padding: 0.05rem 0.32rem;
+      border-radius: 4px;
     }
 
     .mono {
-      font-family: "JetBrains Mono", Consolas, monospace;
+      font-family: "DM Mono", monospace;
     }
 
-    .container {
-      max-width: 1280px;
-      margin: 0 auto;
-      padding: 0 20px 28px;
-      position: relative;
-      z-index: 1;
-    }
-
-    .topbar {
-      position: sticky;
+    nav {
+      position: fixed;
       top: 0;
-      z-index: 10;
-      backdrop-filter: blur(10px);
-      background: rgba(245, 242, 235, 0.86);
-      border-bottom: 1px solid var(--line);
-    }
-
-    .topbar-inner {
-      max-width: 1280px;
-      margin: 0 auto;
-      padding: 14px 20px;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      padding: 1rem 2.5rem;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 12px;
+      background: rgba(249, 246, 240, 0.88);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      transition: all 0.3s ease;
+      gap: 1rem;
     }
 
-    .brand {
+    .nav-logo {
+      font-family: "DM Mono", monospace;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--forest);
+      letter-spacing: -0.02em;
       display: flex;
       align-items: center;
-      gap: 10px;
-      font-weight: 800;
-      letter-spacing: -0.02em;
+      gap: 0.5rem;
+      flex-shrink: 0;
     }
 
-    .brand-dot {
-      width: 10px;
-      height: 10px;
+    .nav-logo::before {
+      content: "";
+      width: 8px;
+      height: 8px;
       border-radius: 50%;
-      background: var(--accent);
-      box-shadow: 0 0 0 6px rgba(47, 124, 103, 0.14);
-      animation: pulse 2.3s infinite;
+      background: var(--forest);
+      animation: pulse 2.4s ease-in-out infinite;
     }
 
     @keyframes pulse {
-      0%, 100% { transform: scale(1); opacity: 1; }
-      50% { transform: scale(0.74); opacity: 0.7; }
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.7); }
     }
 
-    .status-pill {
-      border: 1px solid var(--line);
-      border-radius: 999px;
-      padding: 6px 12px;
-      font-size: 12px;
-      color: var(--muted);
-      background: rgba(255, 255, 255, 0.7);
-    }
-
-    .status-pill.ok { color: var(--ok); border-color: rgba(31, 122, 79, 0.35); background: #f1faf5; }
-    .status-pill.warn { color: var(--warn); border-color: rgba(155, 95, 0, 0.35); background: #fff7eb; }
-
-    .hero {
-      padding: 32px 0 22px;
-      display: grid;
-      grid-template-columns: 1.25fr 1fr;
-      gap: 18px;
-      align-items: stretch;
-    }
-
-    .hero-panel {
-      background: var(--card);
-      border: 1px solid var(--line);
-      border-radius: 20px;
-      box-shadow: var(--shadow-lg);
-      padding: 22px;
-    }
-
-    .eyebrow {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 5px 10px;
-      border-radius: 999px;
-      border: 1px solid var(--line);
-      color: var(--muted);
-      background: var(--bg-soft);
-      font-size: 12px;
-      margin-bottom: 12px;
-    }
-
-    .eyebrow::before {
-      content: "";
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: var(--accent);
-    }
-
-    h1 {
-      font-size: clamp(28px, 4vw, 42px);
-      letter-spacing: -0.03em;
-      line-height: 1.08;
-      margin-bottom: 10px;
-    }
-
-    .hero-sub {
-      color: var(--muted);
-      margin-bottom: 16px;
-      max-width: 65ch;
-    }
-
-    .pills {
+    .nav-links {
       display: flex;
+      align-items: center;
+      gap: 1.5rem;
       flex-wrap: wrap;
-      gap: 8px;
-      margin-bottom: 16px;
+      justify-content: flex-end;
     }
 
-    .pill {
-      border: 1px solid var(--line);
+    .nav-links a {
+      color: var(--ink-muted);
+      text-decoration: none;
+      font-size: 0.84rem;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+
+    .nav-links a:hover {
+      color: var(--forest);
+    }
+
+    .nav-badge {
+      padding: 0.35rem 0.8rem;
+      background: var(--forest);
+      color: #fff;
       border-radius: 999px;
-      padding: 5px 10px;
-      font-size: 12px;
-      color: #435063;
-      background: #fbf9f4;
+      font-size: 0.78rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      text-decoration: none;
     }
 
-    .metrics {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 10px;
-    }
-
-    .metric {
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      padding: 12px;
+    .nav-health {
+      padding: 0.35rem 0.8rem;
+      border: 1px solid var(--border-strong);
+      border-radius: 999px;
+      font-family: "DM Mono", monospace;
+      font-size: 0.74rem;
+      color: var(--ink-muted);
       background: #fff;
     }
 
-    .metric .val {
-      font-size: 18px;
-      font-weight: 700;
-      color: var(--brand);
+    .nav-health.ok {
+      color: var(--forest);
+      border-color: rgba(27, 67, 50, 0.35);
+      background: #f1f8f4;
+    }
+
+    .nav-health.warn {
+      color: var(--amber);
+      border-color: rgba(180, 83, 9, 0.32);
+      background: #fff8ec;
+    }
+
+    .container {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 0 2.5rem;
+    }
+
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 8rem 0 6rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-bg {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    .hero-bg-circle {
+      position: absolute;
+      border-radius: 50%;
+      opacity: 0.06;
+      background: var(--forest);
+    }
+
+    .hero-bg-circle:nth-child(1) {
+      width: 600px;
+      height: 600px;
+      top: -200px;
+      right: -100px;
+      animation: float1 18s ease-in-out infinite;
+    }
+
+    .hero-bg-circle:nth-child(2) {
+      width: 300px;
+      height: 300px;
+      bottom: 100px;
+      left: -80px;
+      opacity: 0.04;
+      animation: float2 22s ease-in-out infinite;
+    }
+
+    @keyframes float1 {
+      0%, 100% { transform: translate(0, 0) scale(1); }
+      33% { transform: translate(-30px, 20px) scale(1.05); }
+      66% { transform: translate(20px, -15px) scale(0.97); }
+    }
+
+    @keyframes float2 {
+      0%, 100% { transform: translate(0, 0); }
+      50% { transform: translate(20px, -30px); }
+    }
+
+    .hero-inner {
+      position: relative;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4rem;
+      align-items: center;
+    }
+
+    .hero-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.4rem 0.9rem;
+      border: 1px solid var(--border-strong);
+      border-radius: 999px;
+      font-family: "DM Mono", monospace;
+      font-size: 0.78rem;
+      color: var(--ink-muted);
+      margin-bottom: 1.5rem;
+      background: rgba(255, 255, 255, 0.6);
+      animation: fadeUp 0.6s ease-out both;
+    }
+
+    .hero-eyebrow-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--forest);
+    }
+
+    .hero-title {
+      font-family: "Playfair Display", serif;
+      font-size: clamp(2.8rem, 5vw, 4.2rem);
+      font-weight: 900;
+      line-height: 1.08;
       letter-spacing: -0.02em;
+      margin-bottom: 1.25rem;
+      animation: fadeUp 0.6s 0.1s ease-out both;
     }
 
-    .metric .lab {
-      margin-top: 3px;
-      font-size: 12px;
-      color: var(--muted);
+    .hero-title em {
+      font-style: italic;
+      color: var(--forest);
     }
 
-    .loop {
-      border: 1px solid var(--line);
-      border-radius: 14px;
-      padding: 14px;
-      background: linear-gradient(180deg, #ffffff, #fcfbf7);
+    .hero-sub {
+      color: var(--ink-light);
+      font-size: 1.05rem;
+      max-width: 48ch;
+      margin-bottom: 2rem;
+      animation: fadeUp 0.6s 0.2s ease-out both;
     }
 
-    .loop h3 {
-      font-size: 13px;
-      letter-spacing: 0.06em;
+    .hero-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+      margin-bottom: 2.5rem;
+      animation: fadeUp 0.6s 0.3s ease-out both;
+    }
+
+    .pill {
+      padding: 0.35rem 0.75rem;
+      border: 1px solid var(--border-strong);
+      border-radius: 999px;
+      font-size: 0.8rem;
+      color: var(--ink-light);
+      background: rgba(255, 255, 255, 0.5);
+    }
+
+    .hero-metrics {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+      animation: fadeUp 0.6s 0.4s ease-out both;
+    }
+
+    .metric {
+      padding: 1.1rem;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+    }
+
+    .metric-val {
+      font-family: "DM Mono", monospace;
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--forest);
+      margin-bottom: 0.2rem;
+    }
+
+    .metric-label {
+      font-size: 0.78rem;
+      color: var(--ink-muted);
+    }
+
+    .hero-loop {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 2rem;
+      box-shadow: var(--shadow-lg);
+      animation: fadeUp 0.7s 0.2s ease-out both;
+    }
+
+    .loop-label {
+      font-family: "DM Mono", monospace;
+      font-size: 0.72rem;
+      color: var(--ink-muted);
       text-transform: uppercase;
-      color: var(--muted);
-      margin-bottom: 10px;
+      letter-spacing: 0.1em;
+      margin-bottom: 1.5rem;
     }
 
     .loop-step {
-      display: grid;
-      grid-template-columns: 28px 1fr;
-      gap: 10px;
-      padding: 10px 0;
-      border-bottom: 1px dashed var(--line);
+      display: flex;
+      align-items: flex-start;
+      gap: 1rem;
+      padding: 1rem 0;
+      border-bottom: 1px solid var(--border);
+      opacity: 0;
+      transform: translateX(12px);
     }
 
-    .loop-step:last-child { border-bottom: 0; }
+    .loop-step.visible {
+      animation: slideIn 0.4s ease-out forwards;
+    }
+
+    .loop-step:last-child {
+      border-bottom: none;
+    }
+
+    @keyframes slideIn {
+      to { opacity: 1; transform: translateX(0); }
+    }
 
     .loop-num {
       width: 28px;
       height: 28px;
       border-radius: 8px;
+      background: var(--forest-pale);
+      color: var(--forest);
       display: flex;
       align-items: center;
       justify-content: center;
-      background: var(--brand-soft);
-      color: var(--brand);
+      font-family: "DM Mono", monospace;
+      font-size: 0.78rem;
       font-weight: 600;
-      font-size: 12px;
+      flex-shrink: 0;
     }
 
-    .loop-title {
+    .loop-step-title {
       font-weight: 600;
-      font-size: 14px;
+      font-size: 0.92rem;
+      margin-bottom: 0.2rem;
     }
 
-    .loop-desc {
-      color: var(--muted);
-      font-size: 13px;
-      margin-top: 2px;
+    .loop-step-desc {
+      font-size: 0.82rem;
+      color: var(--ink-muted);
     }
 
-    .workspace {
-      display: grid;
-      grid-template-columns: 390px minmax(0, 1fr);
-      gap: 14px;
-      margin-top: 6px;
+    .callout {
+      border-left: 3px solid var(--forest);
+      background: var(--forest-pale);
+      padding: 1rem 1.25rem;
+      border-radius: 0 10px 10px 0;
+      font-size: 0.9rem;
+      color: var(--forest);
+      margin: 1.5rem 0;
     }
 
-    .stack {
-      display: grid;
-      gap: 12px;
-      align-content: start;
+    section {
+      padding: 6rem 0;
+      border-top: 1px solid var(--border);
     }
 
-    .card {
-      background: var(--card);
-      border: 1px solid var(--line);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      padding: 14px;
-    }
-
-    .card h2 {
-      font-size: 14px;
+    .section-kicker {
+      font-family: "DM Mono", monospace;
+      font-size: 0.72rem;
       text-transform: uppercase;
-      letter-spacing: 0.06em;
-      color: var(--muted);
-      margin-bottom: 10px;
+      letter-spacing: 0.1em;
+      color: var(--forest);
+      margin-bottom: 0.75rem;
     }
 
-    .row {
+    .section-title {
+      font-family: "Playfair Display", serif;
+      font-size: clamp(1.8rem, 3vw, 2.5rem);
+      font-weight: 700;
+      line-height: 1.15;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.75rem;
+    }
+
+    .section-sub {
+      color: var(--ink-light);
+      max-width: 62ch;
+      font-size: 1rem;
+      margin-bottom: 3rem;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+      align-items: start;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.25rem;
+    }
+
+    .step-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    .step-item {
+      display: flex;
+      gap: 1rem;
+      padding: 1.25rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .step-item:last-child {
+      border-bottom: none;
+    }
+
+    .step-num {
+      width: 32px;
+      height: 32px;
+      border-radius: 10px;
+      background: var(--forest-pale);
+      color: var(--forest);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: "DM Mono", monospace;
+      font-size: 0.8rem;
+      font-weight: 600;
+      flex-shrink: 0;
+      margin-top: 0.1rem;
+    }
+
+    .step-content strong {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 0.2rem;
+      font-size: 0.95rem;
+    }
+
+    .step-content p {
+      font-size: 0.875rem;
+      color: var(--ink-light);
+    }
+
+    .task-card {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 2rem;
+      box-shadow: var(--shadow);
+      transition: transform 0.25s, box-shadow 0.25s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .task-card::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+    }
+
+    .task-card.easy::before { background: #10b981; }
+    .task-card.medium::before { background: #f59e0b; }
+    .task-card.hard::before { background: #ef4444; }
+
+    .task-card:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .task-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.3rem 0.7rem;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .task-badge.easy { background: #d1fae5; color: #065f46; }
+    .task-badge.medium { background: #fef3c7; color: #92400e; }
+    .task-badge.hard { background: #fee2e2; color: #991b1b; }
+
+    .task-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 1rem;
+      gap: 0.6rem;
+    }
+
+    .task-file {
+      font-family: "DM Mono", monospace;
+      font-size: 0.75rem;
+      color: var(--ink-muted);
+      margin-bottom: 0.4rem;
+    }
+
+    .task-name {
+      font-weight: 700;
+      font-size: 1.05rem;
+      margin-bottom: 0.6rem;
+    }
+
+    .task-desc {
+      font-size: 0.875rem;
+      color: var(--ink-light);
+      margin-bottom: 1.25rem;
+      line-height: 1.58;
+    }
+
+    .task-tags {
       display: flex;
       flex-wrap: wrap;
-      gap: 8px;
-      align-items: center;
-      margin-top: 8px;
+      gap: 0.5rem;
     }
 
-    input, select, textarea, button {
+    .tag {
+      padding: 0.25rem 0.6rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 0.75rem;
+      color: var(--ink-muted);
+      font-family: "DM Mono", monospace;
+      background: #fff;
+    }
+
+    .tag.green { background: var(--forest-pale); color: var(--forest); border-color: transparent; }
+    .tag.amber { background: var(--amber-pale); color: var(--amber); border-color: transparent; }
+    .tag.red { background: var(--red-pale); color: var(--red); border-color: transparent; }
+
+    .card {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 1.75rem;
+      box-shadow: var(--shadow);
+      transition: transform 0.25s ease, box-shadow 0.25s ease;
+    }
+
+    .card:hover {
+      transform: translateY(-3px);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .card-kicker {
+      font-family: "DM Mono", monospace;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--ink-muted);
+      margin-bottom: 0.6rem;
+    }
+
+    .card-title {
+      font-weight: 600;
+      font-size: 1rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .card-body {
+      font-size: 0.875rem;
+      color: var(--ink-light);
+      line-height: 1.6;
+    }
+
+    .reward-table-wrap {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.875rem;
+    }
+
+    th {
+      padding: 0.85rem 1.25rem;
+      text-align: left;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--ink-muted);
+      font-weight: 600;
+      background: var(--cream-dark);
+      border-bottom: 1px solid var(--border);
+    }
+
+    td {
+      padding: 0.85rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+      color: var(--ink-light);
+      vertical-align: top;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    tr:hover td {
+      background: var(--cream);
+    }
+
+    .method-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.25rem 0.55rem;
+      border-radius: 6px;
+      font-family: "DM Mono", monospace;
+      font-size: 0.72rem;
+      font-weight: 500;
+    }
+
+    .method-get { background: #dbeafe; color: #1e40af; }
+    .method-post { background: #fef3c7; color: #92400e; }
+
+    .code-wrap {
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+
+    .code-header {
+      background: var(--cream-dark);
+      border-bottom: 1px solid var(--border);
+      padding: 0.6rem 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-family: "DM Mono", monospace;
+      font-size: 0.75rem;
+      color: var(--ink-muted);
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .dot-red { background: #ef4444; }
+    .dot-yellow { background: #f59e0b; }
+    .dot-green { background: #10b981; }
+
+    .code-block {
+      background: #1a1410;
+      color: #e8dcc8;
+      padding: 1.5rem;
+      font-family: "DM Mono", monospace;
+      font-size: 0.82rem;
+      line-height: 1.75;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .code-block .comment { color: #6b7860; }
+    .code-block .key { color: #82aacc; }
+    .code-block .val { color: #f0b472; }
+
+    .wins-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.25rem;
+    }
+
+    .win-card {
+      padding: 1.75rem;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: #fff;
+      box-shadow: var(--shadow);
+      transition: transform 0.25s, box-shadow 0.25s;
+    }
+
+    .win-card:hover {
+      transform: translateY(-3px);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .win-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: var(--forest-pale);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 1rem;
+      font-size: 1.1rem;
+    }
+
+    .win-title {
+      font-weight: 700;
+      font-size: 0.95rem;
+      margin-bottom: 0.4rem;
+    }
+
+    .win-body {
+      font-size: 0.84rem;
+      color: var(--ink-light);
+      line-height: 1.6;
+    }
+
+    .console-grid {
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      gap: 1.2rem;
+      align-items: start;
+    }
+
+    .console-stack {
+      display: grid;
+      gap: 1rem;
+    }
+
+    .label {
+      display: block;
+      font-size: 0.78rem;
+      color: var(--ink-muted);
+      margin-bottom: 0.35rem;
+      font-family: "DM Mono", monospace;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+
+    input,
+    select,
+    textarea,
+    button {
       font: inherit;
       color: var(--ink);
-      border: 1px solid var(--line-strong);
+      border: 1px solid var(--border-strong);
       background: #fff;
       border-radius: 10px;
-      padding: 9px 10px;
+      padding: 0.58rem 0.65rem;
       transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
     }
 
-    input, select, textarea { width: 100%; }
-
     textarea {
-      min-height: 160px;
+      width: 100%;
+      min-height: 140px;
       resize: vertical;
+      font-family: "DM Mono", monospace;
+      font-size: 0.8rem;
       line-height: 1.5;
     }
 
-    input:focus, select:focus, textarea:focus, button:focus {
-      outline: none;
-      border-color: var(--accent);
-      box-shadow: 0 0 0 3px rgba(47, 124, 103, 0.16);
+    select,
+    input {
+      width: 100%;
     }
 
     button {
       cursor: pointer;
-      background: #fff;
       font-weight: 600;
-    }
-
-    button.primary {
-      background: linear-gradient(180deg, #2f7c67, #216352);
-      color: #fff;
-      border-color: #1f5e4f;
+      background: #fff;
     }
 
     button:hover {
-      background: #f8fafb;
+      border-color: var(--forest-light);
+      background: #fefefe;
     }
 
-    button.primary:hover {
-      background: linear-gradient(180deg, #33856f, #236754);
+    button:focus,
+    select:focus,
+    input:focus,
+    textarea:focus {
+      outline: none;
+      border-color: var(--forest-light);
+      box-shadow: 0 0 0 3px rgba(45, 106, 79, 0.16);
     }
 
-    .split-2 {
+    .primary {
+      background: var(--forest);
+      color: #fff;
+      border-color: transparent;
+    }
+
+    .primary:hover {
+      background: var(--forest-light);
+      border-color: transparent;
+    }
+
+    .split {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.6rem;
     }
 
     .split-3 {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 8px;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.6rem;
     }
 
-    .session-text {
-      margin-top: 10px;
-      font-size: 12px;
-      color: var(--muted);
+    .session-id {
+      margin-top: 0.8rem;
+      padding: 0.65rem 0.8rem;
+      background: var(--cream-dark);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-family: "DM Mono", monospace;
+      font-size: 0.76rem;
+      color: var(--ink-muted);
       word-break: break-all;
     }
 
-    .session-text strong { color: var(--ink); }
-
-    .task-desc {
-      margin-top: 6px;
-      color: var(--muted);
-      font-size: 12px;
-      min-height: 34px;
+    .obs-box {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 0.9rem;
+      background: #fff;
+      margin-bottom: 0.8rem;
     }
 
-    .obs-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: start;
-      gap: 10px;
-      margin-bottom: 8px;
+    .obs-alert {
+      font-size: 0.88rem;
+      color: var(--ink-light);
     }
 
-    .alert {
-      padding: 10px 11px;
-      border-radius: 11px;
-      font-size: 13px;
-      border: 1px solid var(--line);
-      background: #fbfaf6;
-      color: #404b5d;
-      margin-bottom: 11px;
-    }
-
-    .meta {
+    .obs-meta {
       display: flex;
       flex-wrap: wrap;
-      gap: 8px;
-      margin-bottom: 11px;
+      gap: 0.45rem;
+      margin-top: 0.7rem;
     }
 
-    .meta-chip {
-      padding: 5px 8px;
+    .chip {
+      font-family: "DM Mono", monospace;
+      font-size: 0.72rem;
+      padding: 0.26rem 0.52rem;
+      border: 1px solid var(--border);
       border-radius: 999px;
-      border: 1px solid var(--line);
       background: #fff;
-      font-size: 12px;
-      color: var(--muted);
+      color: var(--ink-muted);
     }
 
-    .health-grid {
+    .health-table {
       width: 100%;
-      border: 1px solid var(--line);
-      border-radius: 12px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
       overflow: hidden;
       background: #fff;
+      margin-bottom: 0.8rem;
     }
 
-    .health-row {
-      display: grid;
-      grid-template-columns: 160px repeat(4, 1fr);
-      gap: 8px;
-      padding: 8px 10px;
-      border-bottom: 1px solid var(--line);
-      align-items: center;
-      font-size: 12px;
+    .health-table table {
+      font-size: 0.8rem;
     }
 
-    .health-row.head {
-      background: #f9f8f3;
-      font-weight: 600;
-      color: #5b6474;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
+    .health-table th,
+    .health-table td {
+      padding: 0.5rem 0.65rem;
     }
 
-    .health-row:last-child { border-bottom: 0; }
-
-    .svc {
+    .health-service {
       display: flex;
       align-items: center;
-      gap: 7px;
+      gap: 0.45rem;
       font-weight: 600;
     }
 
-    .dot {
+    .svc-dot {
       width: 8px;
       height: 8px;
       border-radius: 50%;
-      background: #c9cfd9;
+      background: #b9b3ab;
     }
 
-    .dot.healthy { background: #2f8f63; }
-    .dot.degraded { background: #c27b1a; }
-    .dot.down { background: #a23030; }
+    .svc-dot.healthy { background: #22a06b; }
+    .svc-dot.degraded { background: #d68d2b; }
+    .svc-dot.down { background: #b13030; }
 
-    .logs {
-      max-height: 430px;
+    #output {
+      max-height: 420px;
       overflow: auto;
-      display: grid;
-      gap: 8px;
-      padding-right: 2px;
-    }
-
-    .log {
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      padding: 10px;
-      background: #fff;
-    }
-
-    .log.good { border-color: rgba(31, 122, 79, 0.32); background: #f4fcf7; }
-    .log.warn { border-color: rgba(155, 95, 0, 0.32); background: #fff8ee; }
-    .log.bad { border-color: rgba(139, 26, 26, 0.33); background: #fef3f3; }
-
-    .log-top {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 6px;
-    }
-
-    .log-title {
-      font-size: 13px;
-      font-weight: 700;
-    }
-
-    .log-time {
-      color: var(--muted);
-      font-size: 11px;
-    }
-
-    .log pre {
-      margin-top: 6px;
-      padding: 10px;
-      border-radius: 10px;
-      background: #171d28;
-      color: #e8eefb;
-      overflow: auto;
-      max-height: 230px;
-      font-size: 12px;
-      line-height: 1.45;
+      white-space: pre-wrap;
     }
 
     .small {
-      font-size: 12px;
-      color: var(--muted);
+      font-size: 0.82rem;
+      color: var(--ink-muted);
     }
 
-    .kbd {
-      border: 1px solid var(--line-strong);
-      border-bottom-width: 2px;
-      border-radius: 6px;
-      padding: 2px 6px;
-      background: #fff;
-      color: #4b5563;
-      font-family: "JetBrains Mono", Consolas, monospace;
-      font-size: 11px;
-    }
-
-    .actions-help {
+    .qs-grid {
       display: grid;
-      gap: 4px;
-      margin-top: 8px;
-      color: var(--muted);
-      font-size: 12px;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
     }
 
-    .empty {
-      border: 1px dashed var(--line-strong);
-      border-radius: 12px;
-      padding: 14px;
-      text-align: center;
-      color: var(--muted);
-      font-size: 13px;
-      background: rgba(255, 255, 255, 0.6);
+    .qs-card {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
     }
 
-    .footer-note {
-      margin-top: 16px;
-      color: var(--muted);
-      font-size: 12px;
-      text-align: center;
+    .qs-card-head {
+      padding: 0.85rem 1.25rem;
+      background: var(--cream-dark);
+      border-bottom: 1px solid var(--border);
+      font-family: "DM Mono", monospace;
+      font-size: 0.78rem;
+      color: var(--ink-muted);
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
     }
+
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 3rem 0;
+      margin-top: 0;
+    }
+
+    .footer-inner {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 2rem;
+      flex-wrap: wrap;
+    }
+
+    .footer-logo {
+      font-family: "DM Mono", monospace;
+      font-weight: 500;
+      color: var(--forest);
+      font-size: 0.95rem;
+    }
+
+    .footer-desc {
+      font-size: 0.82rem;
+      color: var(--ink-muted);
+      margin-top: 0.25rem;
+    }
+
+    .footer-links {
+      display: flex;
+      gap: 1.3rem;
+      flex-wrap: wrap;
+    }
+
+    .footer-links a {
+      color: var(--ink-muted);
+      text-decoration: none;
+      font-size: 0.875rem;
+      transition: color 0.2s;
+    }
+
+    .footer-links a:hover {
+      color: var(--forest);
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(18px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .reveal {
+      opacity: 0;
+      transform: translateY(24px);
+      transition: opacity 0.55s ease, transform 0.55s ease;
+    }
+
+    .reveal.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .reveal-delay-1 { transition-delay: 0.1s; }
+    .reveal-delay-2 { transition-delay: 0.2s; }
+    .reveal-delay-3 { transition-delay: 0.3s; }
 
     @media (max-width: 1100px) {
-      .hero {
+      .hero-inner,
+      .grid-2,
+      .grid-3,
+      .wins-grid,
+      .console-grid,
+      .qs-grid {
         grid-template-columns: 1fr;
       }
-      .workspace {
-        grid-template-columns: 1fr;
+
+      .hero-metrics {
+        grid-template-columns: repeat(3, 1fr);
       }
     }
 
-    @media (max-width: 760px) {
-      .topbar-inner, .container { padding-left: 14px; padding-right: 14px; }
-      .metrics { grid-template-columns: 1fr; }
-      .split-2, .split-3 { grid-template-columns: 1fr; }
-      .health-row {
-        grid-template-columns: 1fr 1fr;
-        row-gap: 5px;
+    @media (max-width: 860px) {
+      nav {
+        padding: 0.85rem 1rem;
       }
-      .health-row.head { display: none; }
-      .svc { grid-column: 1 / -1; }
+
+      .container {
+        padding: 0 1rem;
+      }
+
+      .nav-links {
+        display: none;
+      }
+
+      .split,
+      .split-3 {
+        grid-template-columns: 1fr;
+      }
+
+      .hero-metrics {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>
 <body>
-  <header class="topbar">
-    <div class="topbar-inner">
-      <div class="brand">
-        <span class="brand-dot"></span>
-        <span>IncidentIQ Console</span>
-      </div>
-      <span id="health-pill" class="status-pill warn mono">checking health...</span>
+  <nav>
+    <div class="nav-logo">IncidentIQ Console</div>
+    <div class="nav-links">
+      <a href="#tasks">Tasks</a>
+      <a href="#rewards">Rewards</a>
+      <a href="#grader">Grader</a>
+      <a href="#api">API</a>
+      <a href="#console">Console</a>
+      <a href="#quickstart">Quick Start</a>
+      <span id="nav-health" class="nav-health">checking...</span>
+      <a href="/docs" class="nav-badge">Swagger UI</a>
     </div>
-  </header>
+  </nav>
 
-  <main class="container">
-    <section class="hero">
-      <article class="hero-panel">
-        <span class="eyebrow">Production Incident Response RL Environment</span>
-        <h1>Investigate incidents step by step, with fast operator feedback.</h1>
-        <p class="hero-sub">
-          This UI gives you a cleaner command center than the default console: run episodes, execute actions, inspect service
-          health evolution, and pull AI-assisted timeline/root-cause views without leaving one screen.
-        </p>
-        <div class="pills">
-          <span class="pill">Deterministic grading</span>
-          <span class="pill">No LLM in grader</span>
-          <span class="pill">Observation-driven loop</span>
-          <span class="pill">5 benchmark tasks</span>
-        </div>
-        <div class="metrics">
-          <div class="metric">
-            <div id="metric-tasks" class="val mono">—</div>
-            <div class="lab">Tasks loaded</div>
+  <section class="hero" id="hero">
+    <div class="hero-bg">
+      <div class="hero-bg-circle"></div>
+      <div class="hero-bg-circle"></div>
+    </div>
+    <div class="container">
+      <div class="hero-inner">
+        <div>
+          <div class="hero-eyebrow">
+            <div class="hero-eyebrow-dot"></div>
+            OpenEnv-compatible RL Environment
           </div>
-          <div class="metric">
-            <div id="metric-step" class="val mono">0</div>
-            <div class="lab">Current step</div>
-          </div>
-          <div class="metric">
-            <div id="metric-remain" class="val mono">—</div>
-            <div class="lab">Steps remaining</div>
-          </div>
-        </div>
-      </article>
-
-      <article class="hero-panel loop">
-        <h3>RL Interaction Loop</h3>
-        <div class="loop-step">
-          <div class="loop-num mono">01</div>
-          <div>
-            <div class="loop-title">Observe</div>
-            <div class="loop-desc">Read service health, logs, dependency graph, and alert context.</div>
-          </div>
-        </div>
-        <div class="loop-step">
-          <div class="loop-num mono">02</div>
-          <div>
-            <div class="loop-title">Act</div>
-            <div class="loop-desc">Send one action at a time: inspect, hypothesize, remediate, close.</div>
-          </div>
-        </div>
-        <div class="loop-step">
-          <div class="loop-num mono">03</div>
-          <div>
-            <div class="loop-title">Learn</div>
-            <div class="loop-desc">Track reward deltas and adapt based on outcome and new evidence.</div>
-          </div>
-        </div>
-        <div class="loop-step">
-          <div class="loop-num mono">04</div>
-          <div>
-            <div class="loop-title">Explain</div>
-            <div class="loop-desc">Use timeline and root-cause tree endpoints for postmortem-grade output.</div>
-          </div>
-        </div>
-      </article>
-    </section>
-
-    <section class="workspace">
-      <div class="stack">
-        <article class="card">
-          <h2>Server & Session</h2>
-          <div class="row split-3">
-            <button id="btn-health">Refresh health</button>
-            <button id="btn-tasks">Load tasks</button>
-            <button id="btn-state">Fetch state</button>
-          </div>
-          <div class="row split-2">
-            <select id="task"></select>
-            <input id="seed" class="mono" placeholder="Seed (optional)">
-          </div>
-          <div class="row">
-            <button id="btn-reset" class="primary" style="width:100%;">Reset episode</button>
-          </div>
-          <div class="session-text mono">
-            <strong>session_id:</strong> <span id="session-id">none</span>
-          </div>
-          <div class="task-desc" id="task-desc">Load tasks to begin.</div>
-        </article>
-
-        <article class="card">
-          <h2>Action Composer</h2>
-          <div class="row split-2">
-            <select id="action">
-              <option>query_logs</option>
-              <option>query_metrics</option>
-              <option>query_traces</option>
-              <option>check_deployment</option>
-              <option>check_config</option>
-              <option>hypothesize</option>
-              <option>remediate</option>
-              <option>close_incident</option>
-            </select>
-            <button id="btn-step" class="primary">Run step</button>
-          </div>
-          <div class="row">
-            <textarea id="params" class="mono"></textarea>
-          </div>
-          <div class="actions-help">
-            <div>Use <span class="kbd">Ctrl</span> + <span class="kbd">Enter</span> inside params to run step quickly.</div>
-            <div>Action templates auto-refresh when you switch action type.</div>
-          </div>
-        </article>
-
-        <article class="card">
-          <h2>AI Insights</h2>
-          <div class="row split-2">
-            <button id="btn-timeline">Timeline</button>
-            <button id="btn-root-cause">Root cause tree</button>
-          </div>
-          <div class="row split-2">
-            <input id="question" placeholder="What caused the outage?">
-            <button id="btn-ask">Ask incident</button>
-          </div>
-          <p class="small" style="margin-top:8px;">
-            Ask endpoint is UI-only and does not affect episode reward or grader output.
+          <h1 class="hero-title">
+            Evaluate on-call agents with <em>incident-response realism</em> and deterministic grading.
+          </h1>
+          <p class="hero-sub">
+            IncidentIQ is benchmark infrastructure, not a model. Agents interact through
+            <code>reset</code>, <code>step</code>, and <code>state</code>, reason over logs/metrics/configs,
+            and are scored entirely by code (no LLM judge).
           </p>
-        </article>
-      </div>
-
-      <div class="stack">
-        <article class="card">
-          <div class="obs-header">
-            <h2 style="margin:0;">Observation Snapshot</h2>
-            <span id="obs-updated" class="small mono">not initialized</span>
+          <div class="hero-pills">
+            <span class="pill">No LLM in grading</span>
+            <span class="pill">5 benchmark tasks</span>
+            <span class="pill">Dense reward shaping</span>
+            <span class="pill">Deterministic scoring</span>
           </div>
-          <div id="alert" class="alert">Reset an episode to view the first observation.</div>
-          <div class="meta">
-            <span id="meta-task" class="meta-chip mono">task: —</span>
-            <span id="meta-step" class="meta-chip mono">step: —</span>
-            <span id="meta-remaining" class="meta-chip mono">remaining: —</span>
-            <span id="meta-reward" class="meta-chip mono">last reward: —</span>
-          </div>
-          <div id="service-health" class="health-grid">
-            <div class="health-row head">
-              <div>Service</div>
-              <div>Status</div>
-              <div>CPU</div>
-              <div>p99</div>
-              <div>Error rate</div>
+          <div class="hero-metrics">
+            <div class="metric">
+              <div class="metric-val" id="metric-task-count">5 tasks</div>
+              <div class="metric-label">Easy -> Hard + twist</div>
             </div>
-            <div class="empty">No observation yet.</div>
+            <div class="metric">
+              <div class="metric-val">reset / step</div>
+              <div class="metric-label">Clean RL API loop</div>
+            </div>
+            <div class="metric">
+              <div class="metric-val">(0.0, 1.0)</div>
+              <div class="metric-label">Strict task score range</div>
+            </div>
           </div>
-        </article>
+        </div>
 
-        <article class="card">
-          <h2>Activity Feed</h2>
-          <div id="logs" class="logs">
-            <div class="empty">No events yet. Start by resetting a task.</div>
+        <div class="hero-loop">
+          <div class="loop-label">RL Interaction Loop</div>
+          <div class="loop-step">
+            <div class="loop-num">01</div>
+            <div>
+              <div class="loop-step-title">Observation</div>
+              <div class="loop-step-desc">Alert summary, service health, recent logs, metrics, dependency graph, deployments.</div>
+            </div>
           </div>
-        </article>
+          <div class="loop-step">
+            <div class="loop-num">02</div>
+            <div>
+              <div class="loop-step-title">Action</div>
+              <div class="loop-step-desc"><code>query</code>, <code>check</code>, <code>hypothesize</code>, <code>remediate</code>, <code>close_incident</code>.</div>
+            </div>
+          </div>
+          <div class="loop-step">
+            <div class="loop-num">03</div>
+            <div>
+              <div class="loop-step-title">Dense Reward</div>
+              <div class="loop-step-desc">Immediate deterministic step reward plus terminal close-incident evaluation.</div>
+            </div>
+          </div>
+          <div class="loop-step">
+            <div class="loop-num">04</div>
+            <div>
+              <div class="loop-step-title">Next State</div>
+              <div class="loop-step-desc">Episode continues until close_incident or step budget exhaustion.</div>
+            </div>
+          </div>
+          <div class="callout mono" style="margin-bottom: 0; font-size: 0.82rem;">
+            obs -> action -> reward -> next_obs
+          </div>
+        </div>
       </div>
-    </section>
+    </div>
+  </section>
 
-    <p class="footer-note">IncidentIQ Console UI upgraded for richer observability and smoother episode workflows.</p>
-  </main>
+  <section id="problem">
+    <div class="container">
+      <div class="section-kicker">The Problem</div>
+      <h2 class="section-title">Why this benchmark is genuinely hard.</h2>
+      <p class="section-sub">
+        Real incidents include noisy symptoms, cascading dependencies, and red herrings.
+        A locally plausible action can still hurt terminal score if it misdiagnoses root cause.
+      </p>
+      <div class="grid-2 reveal">
+        <div>
+          <div class="step-list">
+            <div class="step-item">
+              <div class="step-num">A</div>
+              <div class="step-content">
+                <strong>Typical automation weakness</strong>
+                <p>Overfits recent deployments or obvious noisy services and misses hidden causal chains.</p>
+              </div>
+            </div>
+            <div class="step-item">
+              <div class="step-num">B</div>
+              <div class="step-content">
+                <strong>What good handling requires</strong>
+                <p>Correlate metrics, logs, config and dependency context before deciding remediation.</p>
+              </div>
+            </div>
+            <div class="step-item">
+              <div class="step-num">C</div>
+              <div class="step-content">
+                <strong>Why RL fits</strong>
+                <p>Correct close-incident payload quality depends on the sequence of prior investigation actions.</p>
+              </div>
+            </div>
+          </div>
+          <div class="callout">
+            IncidentIQ rewards coherent incident narratives, not keyword matching.
+          </div>
+        </div>
+        <div class="code-wrap reveal reveal-delay-2">
+          <div class="code-header">
+            <span class="dot dot-red"></span>
+            <span class="dot dot-yellow"></span>
+            <span class="dot dot-green"></span>
+            task4_db_connection_limit - common failure mode
+          </div>
+          <div class="code-block">
+<span class="comment"># Looks suspicious:</span>
+<span class="key">analytics-service</span> mem=75% p99=1000ms
+
+<span class="comment"># Actual root cause:</span>
+<span class="key">postgres</span> max_connections reduced
+<span class="val">-> order-service timeouts</span>
+<span class="val">-> api-gateway 503s</span>
+
+<span class="comment"># Agent must avoid red-herring fixation.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="tasks">
+    <div class="container">
+      <div class="section-kicker">Benchmark Tasks</div>
+      <h2 class="section-title reveal">A curriculum from local failures to deceptive scenarios.</h2>
+      <p class="section-sub reveal">
+        Five fixed tasks with deterministic episodes. Tasks 1-4 keep analytics as red herring;
+        task 5 flips analytics to the real root cause.
+      </p>
+      <div class="grid-3">
+        <div class="task-card easy reveal">
+          <div class="task-head">
+            <div>
+              <div class="task-file">task1_cpu_saturation</div>
+              <div class="task-name">Single service CPU saturation</div>
+            </div>
+            <span class="task-badge easy">Easy</span>
+          </div>
+          <p class="task-desc">
+            order-service saturates CPU due to a missing index, with api-gateway impact and analytics noise.
+          </p>
+          <div class="task-tags">
+            <span class="tag">15 max steps</span>
+            <span class="tag green">Root: order-service</span>
+            <span class="tag amber">Remediation: rollback</span>
+          </div>
+        </div>
+
+        <div class="task-card medium reveal reveal-delay-1">
+          <div class="task-head">
+            <div>
+              <div class="task-file">task2_cascading_failure</div>
+              <div class="task-name">Cascading auth failure</div>
+            </div>
+            <span class="task-badge medium">Medium</span>
+          </div>
+          <p class="task-desc">
+            auth-service redis pool exhaustion cascades to api-gateway while recent deploys tempt wrong conclusions.
+          </p>
+          <div class="task-tags">
+            <span class="tag">20 max steps</span>
+            <span class="tag green">Root: auth-service</span>
+            <span class="tag amber">Remediation: restart</span>
+          </div>
+        </div>
+
+        <div class="task-card hard reveal reveal-delay-2">
+          <div class="task-head">
+            <div>
+              <div class="task-file">task3_silent_corruption</div>
+              <div class="task-name">Silent data corruption</div>
+            </div>
+            <span class="task-badge hard">Hard</span>
+          </div>
+          <p class="task-desc">
+            No outage and healthy statuses; subtle order-service config race causes billing mismatch.
+          </p>
+          <div class="task-tags">
+            <span class="tag">30 max steps</span>
+            <span class="tag green">Root: order-service</span>
+            <span class="tag amber">Remediation: config_patch</span>
+          </div>
+        </div>
+
+        <div class="task-card medium reveal">
+          <div class="task-head">
+            <div>
+              <div class="task-file">task4_db_connection_limit</div>
+              <div class="task-name">DB connection saturation</div>
+            </div>
+            <span class="task-badge medium">Medium</span>
+          </div>
+          <p class="task-desc">
+            postgres max_connections reduced by config change, cascading to order-service and gateway.
+          </p>
+          <div class="task-tags">
+            <span class="tag">20 max steps</span>
+            <span class="tag green">Root: postgres</span>
+            <span class="tag amber">Remediation: config_patch</span>
+          </div>
+        </div>
+
+        <div class="task-card hard reveal reveal-delay-1">
+          <div class="task-head">
+            <div>
+              <div class="task-file">task5_memory_leak_analytics</div>
+              <div class="task-name">Twist: analytics is real root</div>
+            </div>
+            <span class="task-badge hard">Medium-Hard</span>
+          </div>
+          <p class="task-desc">
+            Unlike other tasks, analytics-service is truly failing (memory leak from unbounded cache).
+          </p>
+          <div class="task-tags">
+            <span class="tag">25 max steps</span>
+            <span class="tag green">Root: analytics-service</span>
+            <span class="tag amber">Remediation: config_patch</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="rewards">
+    <div class="container">
+      <div class="section-kicker">Reward Design</div>
+      <h2 class="section-title reveal">Dense signal. Delayed truth.</h2>
+      <p class="section-sub reveal">
+        Step rewards encourage useful investigation; terminal reward evaluates final incident report quality.
+      </p>
+      <div class="grid-3 reveal" style="margin-bottom: 2rem;">
+        <div class="card">
+          <div class="card-kicker">Investigation</div>
+          <div class="card-title">+0.08 root-svc query</div>
+          <p class="card-body">Logs/metrics on root service receive stronger reward than generic probing.</p>
+        </div>
+        <div class="card">
+          <div class="card-kicker">Hypothesis</div>
+          <div class="card-title">+0.10 correct target</div>
+          <p class="card-body">Correct root-cause hypothesis is rewarded before closing the incident.</p>
+        </div>
+        <div class="card">
+          <div class="card-kicker">Terminal</div>
+          <div class="card-title">up to +0.60</div>
+          <p class="card-body">Close-incidents are scored on root cause, mechanism, remediation, blast radius and efficiency.</p>
+        </div>
+      </div>
+      <div class="reward-table-wrap reveal">
+        <table>
+          <thead>
+            <tr>
+              <th>Stage</th>
+              <th>Rule</th>
+              <th>Value</th>
+              <th>Purpose</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>Any action</td><td>Step penalty floor/ceiling</td><td><code>[-0.15, +0.10]</code></td><td>Keep reward scale stable</td></tr>
+            <tr><td>Logs/Metrics</td><td>Root/affected service query</td><td><code>+0.08 / +0.05</code></td><td>Reward evidence gathering</td></tr>
+            <tr><td>Hypothesize</td><td>Correct root target</td><td><code>+0.10</code></td><td>Reward causal reasoning</td></tr>
+            <tr><td>Red herring target</td><td>Query/hypothesis/remediation</td><td><code>-0.08</code></td><td>Penalize distraction</td></tr>
+            <tr><td>Close incident</td><td>Terminal reward clamp</td><td><code>[0.0, 0.60]</code></td><td>Final report quality signal</td></tr>
+            <tr><td>Task score</td><td>Final grade output</td><td><code>(0.0, 1.0)</code></td><td>Strict open interval requirement</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section id="grader">
+    <div class="container">
+      <div class="section-kicker">Deterministic Grader</div>
+      <h2 class="section-title reveal">No LLM calls. No randomness. Same history, same score.</h2>
+      <p class="section-sub reveal">
+        Each task has a programmatic grader. Score components differ by task but always include
+        root-cause correctness, mechanism plausibility, remediation choice, and signal quality.
+      </p>
+      <div class="grid-2 reveal">
+        <div>
+          <div class="step-list">
+            <div class="step-item">
+              <div class="step-num">1</div>
+              <div class="step-content">
+                <strong>Action-log driven evaluation</strong>
+                <p>Graders inspect recorded actions and close_incident payload fields deterministically.</p>
+              </div>
+            </div>
+            <div class="step-item">
+              <div class="step-num">2</div>
+              <div class="step-content">
+                <strong>Partial credit before close</strong>
+                <p>Investigation traces can still earn bounded score when close_incident is not called.</p>
+              </div>
+            </div>
+            <div class="step-item">
+              <div class="step-num">3</div>
+              <div class="step-content">
+                <strong>Red-herring resistance</strong>
+                <p>Incorrect blast radius or red-herring targeting reduces terminal quality outcomes.</p>
+              </div>
+            </div>
+            <div class="step-item">
+              <div class="step-num">4</div>
+              <div class="step-content">
+                <strong>Strict output interval</strong>
+                <p>All task grader returns are clamped to <code>(0.0, 1.0)</code>, never exact boundary values.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="code-wrap reveal reveal-delay-2">
+          <div class="code-header">
+            <span class="dot dot-red"></span>
+            <span class="dot dot-yellow"></span>
+            <span class="dot dot-green"></span>
+            Grader philosophy
+          </div>
+          <div class="code-block">
+<span class="comment"># deterministic, no LLM in grading path</span>
+score += root_cause_component
+score += mechanism_component
+score += remediation_component
+score += efficiency_bonus
+
+<span class="comment"># strict-open clamp for validator compatibility</span>
+score = clamp(score, 1e-6, 1.0 - 1e-6)
+          </div>
+          <div class="callout" style="margin: 0;">
+            Grading is reproducible and audit-friendly by design.
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="api">
+    <div class="container">
+      <div class="section-kicker">API Surface</div>
+      <h2 class="section-title reveal">Small, intentional, complete.</h2>
+      <p class="section-sub reveal">
+        A client can list tasks, reset episodes, step actions, inspect state, and use explainability endpoints.
+      </p>
+      <div class="grid-2 reveal">
+        <div class="reward-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Method</th>
+                <th>Endpoint</th>
+                <th>Purpose</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td><span class="method-badge method-get">GET</span></td><td><code>/tasks</code></td><td>List benchmark tasks</td></tr>
+              <tr><td><span class="method-badge method-post">POST</span></td><td><code>/reset</code></td><td>Start a fresh episode</td></tr>
+              <tr><td><span class="method-badge method-post">POST</span></td><td><code>/step</code></td><td>Execute one action</td></tr>
+              <tr><td><span class="method-badge method-get">GET</span></td><td><code>/state</code></td><td>State for latest session</td></tr>
+              <tr><td><span class="method-badge method-get">GET</span></td><td><code>/state/{session_id}</code></td><td>State for specific session</td></tr>
+              <tr><td><span class="method-badge method-get">GET</span></td><td><code>/timeline/{session_id}</code></td><td>Incident timeline view</td></tr>
+              <tr><td><span class="method-badge method-get">GET</span></td><td><code>/root-cause-tree/{session_id}</code></td><td>Ranked candidates</td></tr>
+              <tr><td><span class="method-badge method-post">POST</span></td><td><code>/ask_incident</code></td><td>UI-only incident Q&A</td></tr>
+              <tr><td><span class="method-badge method-get">GET</span></td><td><code>/health</code></td><td>Health check</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="code-wrap reveal reveal-delay-2">
+          <div class="code-header">
+            <span class="dot dot-red"></span>
+            <span class="dot dot-yellow"></span>
+            <span class="dot dot-green"></span>
+            Example episode loop
+          </div>
+          <div class="code-block">
+<span class="comment"># 1) reset task</span>
+<span class="key">POST</span> /reset {"task_id":"task4_db_connection_limit"}
+
+<span class="comment"># 2) investigate</span>
+<span class="key">POST</span> /step {"action":"query_metrics","params":{"service":"postgres","metric":"active_connections","window_minutes":30}}
+
+<span class="comment"># 3) hypothesize and remediate</span>
+<span class="key">POST</span> /step {"action":"hypothesize", ...}
+<span class="key">POST</span> /step {"action":"remediate", ...}
+
+<span class="comment"># 4) close incident</span>
+<span class="key">POST</span> /step {"action":"close_incident", ...}
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="console">
+    <div class="container">
+      <div class="section-kicker">Live Console</div>
+      <h2 class="section-title reveal">Run IncidentIQ directly from this page.</h2>
+      <p class="section-sub reveal">
+        Reset tasks, run actions, inspect state, and use timeline/root-cause/Q&A in one operator workflow.
+      </p>
+
+      <div class="console-grid reveal">
+        <div class="console-stack">
+          <div class="card">
+            <div class="label">Server</div>
+            <div class="split-3">
+              <button id="btn-health">Refresh health</button>
+              <button id="btn-tasks">Load tasks</button>
+              <button id="btn-state">Fetch state</button>
+            </div>
+            <p class="small" style="margin-top: 0.7rem;">Use seed for deterministic replay while debugging agents.</p>
+          </div>
+
+          <div class="card">
+            <div class="label">Session</div>
+            <div class="split">
+              <div>
+                <label class="label" for="task">task_id</label>
+                <select id="task"></select>
+              </div>
+              <div>
+                <label class="label" for="seed">seed</label>
+                <input id="seed" class="mono" placeholder="optional">
+              </div>
+            </div>
+            <button id="btn-reset" class="primary" style="width: 100%; margin-top: 0.65rem;">Reset episode</button>
+            <div class="session-id"><strong>session_id:</strong> <span id="session-id">none</span></div>
+            <p id="task-description" class="small" style="margin-top: 0.6rem;">Load tasks to start.</p>
+          </div>
+
+          <div class="card">
+            <div class="label">Action</div>
+            <div class="split">
+              <div>
+                <label class="label" for="action">action</label>
+                <select id="action">
+                  <option>query_logs</option>
+                  <option>query_metrics</option>
+                  <option>query_traces</option>
+                  <option>check_deployment</option>
+                  <option>check_config</option>
+                  <option>hypothesize</option>
+                  <option>remediate</option>
+                  <option>close_incident</option>
+                </select>
+              </div>
+              <div style="display:flex; align-items:end;">
+                <button id="btn-step" class="primary" style="width: 100%;">Run step</button>
+              </div>
+            </div>
+            <label class="label" for="params" style="margin-top: 0.65rem;">params (json)</label>
+            <textarea id="params"></textarea>
+          </div>
+
+          <div class="card">
+            <div class="label">AI Insights</div>
+            <div class="split">
+              <button id="btn-timeline">Timeline</button>
+              <button id="btn-root-cause">Root cause tree</button>
+            </div>
+            <div class="split" style="margin-top: 0.6rem;">
+              <input id="question" placeholder="What likely caused this incident?">
+              <button id="btn-ask">Ask incident</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="console-stack">
+          <div class="card">
+            <div class="label">Observation Snapshot</div>
+            <div class="obs-box">
+              <div id="alert-summary" class="obs-alert">Reset an episode to view live observation data.</div>
+              <div class="obs-meta">
+                <span id="obs-task" class="chip">task: -</span>
+                <span id="obs-step" class="chip">step: -</span>
+                <span id="obs-remaining" class="chip">remaining: -</span>
+                <span id="obs-reward" class="chip">last reward: -</span>
+              </div>
+            </div>
+
+            <div class="health-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Service</th>
+                    <th>Status</th>
+                    <th>CPU</th>
+                    <th>p99</th>
+                    <th>Error</th>
+                  </tr>
+                </thead>
+                <tbody id="service-health-body">
+                  <tr><td colspan="5" class="small">No service health yet.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="label">Event Output</div>
+            <div id="output" class="code-block"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="quickstart">
+    <div class="container">
+      <div class="section-kicker">Quick Start</div>
+      <h2 class="section-title reveal">Run locally in a few commands.</h2>
+      <p class="section-sub reveal">
+        Start the API server, then run demo or inference clients against it.
+      </p>
+      <div class="qs-grid reveal">
+        <div class="qs-card">
+          <div class="qs-card-head">
+            <span class="dot dot-red"></span>
+            <span class="dot dot-yellow"></span>
+            <span class="dot dot-green"></span>
+            Local run
+          </div>
+          <div class="code-block" style="border-radius: 0;">
+pip install -r requirements.txt
+python -m uvicorn server.app:app --host 0.0.0.0 --port 7860
+curl http://localhost:7860/health
+          </div>
+        </div>
+        <div class="qs-card">
+          <div class="qs-card-head">
+            <span class="dot dot-red"></span>
+            <span class="dot dot-yellow"></span>
+            <span class="dot dot-green"></span>
+            Evaluation scripts
+          </div>
+          <div class="code-block" style="border-radius: 0;">
+<span class="comment"># Rule-based benchmark</span>
+python run_demo.py
+
+<span class="comment"># LLM benchmark</span>
+API_BASE_URL=https://integrate.api.nvidia.com/v1
+HF_TOKEN=your_token_here
+python inference.py
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="container">
+      <div class="footer-inner">
+        <div>
+          <div class="footer-logo">IncidentIQ Console</div>
+          <div class="footer-desc">
+            Deterministic scoring. Multi-step incident reasoning. OpenEnv-compatible RL benchmark.
+          </div>
+        </div>
+        <div class="footer-links">
+          <a href="/docs">Swagger UI</a>
+          <a href="/api">API index</a>
+          <a href="/health">Health</a>
+        </div>
+      </div>
+    </div>
+  </footer>
 
   <script>
     const $ = (id) => document.getElementById(id);
-    const logsEl = $("logs");
-
+    const outputEl = $("output");
     let sessionId = "";
-    let lastObservation = null;
-    let taskList = [];
-    let eventCount = 0;
+    let tasksCache = [];
 
     const samples = {
-      query_logs: { service: "order-service", pattern: "error" },
-      query_metrics: { service: "order-service", metric: "error_rate", window_minutes: 30 },
-      query_traces: { service: "order-service" },
-      check_deployment: { service: "order-service" },
-      check_config: { service: "order-service", key: "payment-handler" },
-      hypothesize: {
-        root_cause_service: "order-service",
-        mechanism: "high error rate and latency detected via metric analysis",
-        confidence: 0.8
-      },
-      remediate: {
-        type: "rollback",
-        target: "order-service",
-        details: "rolling back last deployment"
-      },
-      close_incident: {
-        root_cause_service: "order-service",
-        mechanism: "high error rate and latency detected via metric analysis",
-        remediation_taken: "rollback",
-        blast_radius: ["order-service", "api-gateway"],
-        summary: "Incident closed after investigating order-service"
-      }
+      query_logs: {"service":"order-service","pattern":"error"},
+      query_metrics: {"service":"order-service","metric":"error_rate","window_minutes":30},
+      query_traces: {"service":"order-service"},
+      check_deployment: {"service":"order-service"},
+      check_config: {"service":"order-service","key":"payment-handler"},
+      hypothesize: {"root_cause_service":"order-service","mechanism":"high error rate and latency detected via metric analysis","confidence":0.8},
+      remediate: {"type":"rollback","target":"order-service","details":"rolling back last deployment"},
+      close_incident: {"root_cause_service":"order-service","mechanism":"high error rate and latency detected via metric analysis","remediation_taken":"rollback","blast_radius":["order-service","api-gateway"],"summary":"Incident closed after investigating order-service"}
     };
 
-    function now() {
-      return new Date().toLocaleTimeString();
+    function log(title, data) {
+      const ts = new Date().toLocaleTimeString();
+      const payload = typeof data === "string" ? data : JSON.stringify(data, null, 2);
+      outputEl.textContent = `[${ts}] ${title}\n${payload}\n\n` + outputEl.textContent;
     }
 
-    function toneFromReward(reward) {
-      if (typeof reward !== "number") return "";
-      if (reward >= 0.08) return "good";
-      if (reward < 0) return "bad";
-      return "warn";
-    }
-
-    function createLog(title, payload, tone = "") {
-      eventCount += 1;
-      if (logsEl.querySelector(".empty")) logsEl.innerHTML = "";
-
-      const card = document.createElement("article");
-      card.className = `log ${tone}`.trim();
-      const json = typeof payload === "string" ? payload : JSON.stringify(payload, null, 2);
-      card.innerHTML = `
-        <div class="log-top">
-          <div class="log-title">${title}</div>
-          <div class="log-time mono">${now()} · #${eventCount}</div>
-        </div>
-        <pre class="mono"></pre>
-      `;
-      card.querySelector("pre").textContent = json;
-      logsEl.prepend(card);
-    }
-
-    async function callApi(path, init = {}) {
+    async function callApi(path, init) {
       const res = await fetch(path, init);
       const txt = await res.text();
       let data = txt;
@@ -811,238 +1695,199 @@
       return data;
     }
 
-    function healthStatusClass(status) {
-      if (status === "ok" || status === "healthy") return "ok";
-      return "warn";
+    function navHealth(text, cls) {
+      const el = $("nav-health");
+      el.textContent = text;
+      el.className = `nav-health ${cls}`.trim();
     }
 
     async function refreshHealth() {
       try {
         const h = await callApi("/health");
-        const pill = $("health-pill");
-        pill.textContent = `${h.status} · v${h.version}`;
-        pill.className = `status-pill mono ${healthStatusClass(h.status)}`;
+        navHealth(`${h.status} v${h.version}`, h.status === "ok" || h.status === "healthy" ? "ok" : "warn");
       } catch (e) {
-        const pill = $("health-pill");
-        pill.textContent = `health error`;
-        pill.className = "status-pill mono warn";
-        createLog("Health check failed", { error: e.message }, "bad");
+        navHealth("health error", "warn");
+        log("Health check failed", {error: e.message});
       }
     }
 
-    function renderTaskDescription(taskId) {
-      const task = taskList.find((t) => t.task_id === taskId);
-      $("task-desc").textContent = task ? task.description : "Task description unavailable.";
+    function getSelectedTaskDescription(taskId) {
+      const t = tasksCache.find((x) => x.task_id === taskId);
+      return t ? t.description : "No task description available.";
     }
 
     async function loadTasks() {
       try {
         const tasks = await callApi("/tasks");
-        taskList = Array.isArray(tasks) ? tasks : [];
+        tasksCache = tasks;
         const sel = $("task");
         sel.innerHTML = "";
-        for (const t of taskList) {
+        for (const t of tasks) {
           const opt = document.createElement("option");
           opt.value = t.task_id;
           opt.textContent = `${t.task_id} (${t.difficulty})`;
           sel.appendChild(opt);
         }
-        $("metric-tasks").textContent = String(taskList.length);
-        renderTaskDescription(sel.value);
-        createLog("Tasks loaded", taskList, "good");
+        $("metric-task-count").textContent = `${tasks.length} tasks`;
+        $("task-description").textContent = getSelectedTaskDescription(sel.value);
+        log("Loaded tasks", tasks);
       } catch (e) {
-        createLog("Task loading failed", { error: e.message }, "bad");
+        log("Task load failed", {error: e.message});
       }
     }
 
-    function statusDotClass(status) {
+    function dotClass(status) {
       if (status === "healthy") return "healthy";
       if (status === "degraded") return "degraded";
       if (status === "down") return "down";
       return "";
     }
 
-    function fmtPct(v) {
-      return `${Number(v || 0).toFixed(1)}%`;
-    }
+    function renderObservation(taskId, obs, rewardValue) {
+      $("alert-summary").textContent = obs?.alert_summary || "No alert summary.";
+      $("obs-task").textContent = `task: ${taskId || "-"}`;
+      $("obs-step").textContent = `step: ${obs?.step_number ?? "-"}`;
+      $("obs-remaining").textContent = `remaining: ${obs?.steps_remaining ?? "-"}`;
+      $("obs-reward").textContent = rewardValue == null ? "last reward: -" : `last reward: ${Number(rewardValue).toFixed(4)}`;
 
-    function fmtMs(v) {
-      return `${Number(v || 0).toFixed(0)}ms`;
-    }
-
-    function fmtErr(v) {
-      return Number(v || 0).toFixed(4);
-    }
-
-    function updateMeta({ taskId = "—", step = "—", remaining = "—", reward = "—" } = {}) {
-      $("meta-task").textContent = `task: ${taskId}`;
-      $("meta-step").textContent = `step: ${step}`;
-      $("meta-remaining").textContent = `remaining: ${remaining}`;
-      $("meta-reward").textContent = `last reward: ${reward}`;
-      if (step !== "—") $("metric-step").textContent = String(step);
-      if (remaining !== "—") $("metric-remain").textContent = String(remaining);
-    }
-
-    function renderObservation(obs, taskId = "—", rewardVal = null) {
-      lastObservation = obs;
-      $("obs-updated").textContent = `updated ${now()}`;
-      $("alert").textContent = obs?.alert_summary || "No alert summary in observation.";
-      updateMeta({
-        taskId,
-        step: obs?.step_number ?? "—",
-        remaining: obs?.steps_remaining ?? "—",
-        reward: rewardVal === null ? "—" : Number(rewardVal).toFixed(4)
-      });
-
-      const container = $("service-health");
-      const rows = [];
-      rows.push(`
-        <div class="health-row head">
-          <div>Service</div><div>Status</div><div>CPU</div><div>p99</div><div>Error rate</div>
-        </div>
-      `);
-      const map = obs?.service_health || {};
-      const services = Object.keys(map);
+      const tbody = $("service-health-body");
+      const health = obs?.service_health || {};
+      const services = Object.keys(health);
       if (!services.length) {
-        container.innerHTML = `<div class="empty">Observation has no service health data.</div>`;
+        tbody.innerHTML = `<tr><td colspan="5" class="small">No service health data.</td></tr>`;
         return;
       }
-      for (const name of services) {
-        const h = map[name] || {};
-        rows.push(`
-          <div class="health-row">
-            <div class="svc"><span class="dot ${statusDotClass(h.status)}"></span>${name}</div>
-            <div>${h.status || "unknown"}</div>
-            <div>${fmtPct(h.cpu_pct)}</div>
-            <div>${fmtMs(h.p99_ms)}</div>
-            <div class="mono">${fmtErr(h.error_rate)}</div>
-          </div>
-        `);
-      }
-      container.innerHTML = rows.join("");
+      const rows = services.map((svc) => {
+        const h = health[svc] || {};
+        return `
+          <tr>
+            <td>
+              <span class="health-service">
+                <span class="svc-dot ${dotClass(h.status)}"></span>${svc}
+              </span>
+            </td>
+            <td>${h.status || "-"}</td>
+            <td>${Number(h.cpu_pct || 0).toFixed(1)}%</td>
+            <td>${Number(h.p99_ms || 0).toFixed(0)}ms</td>
+            <td class="mono">${Number(h.error_rate || 0).toFixed(4)}</td>
+          </tr>
+        `;
+      }).join("");
+      tbody.innerHTML = rows;
     }
 
     async function resetSession() {
       try {
         const taskId = $("task").value;
-        const body = { task_id: taskId };
-        const seedTxt = $("seed").value.trim();
-        if (seedTxt) body.seed = Number(seedTxt);
+        const body = {task_id: taskId};
+        const seed = $("seed").value.trim();
+        if (seed !== "") body.seed = Number(seed);
         const data = await callApi("/reset", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {"Content-Type":"application/json"},
           body: JSON.stringify(body)
         });
         sessionId = data.session_id;
         $("session-id").textContent = sessionId;
-        renderTaskDescription(taskId);
-        renderObservation(data.observation, taskId, null);
-        createLog("Session reset", data, "good");
+        $("task-description").textContent = getSelectedTaskDescription(taskId);
+        renderObservation(taskId, data.observation, null);
+        log("Session reset", data);
       } catch (e) {
-        createLog("Reset failed", { error: e.message }, "bad");
+        log("Reset failed", {error: e.message});
       }
     }
 
     async function runStep() {
       if (!sessionId) {
-        createLog("Step blocked", { error: "Reset a session first." }, "warn");
+        log("Step blocked", {error: "Reset a session first"});
         return;
       }
       try {
         const action = $("action").value;
-        const params = JSON.parse($("params").value || "{}");
+        const params = JSON.parse($("params").value);
         const data = await callApi("/step", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ session_id: sessionId, action: { action, params } })
+          headers: {"Content-Type":"application/json"},
+          body: JSON.stringify({session_id: sessionId, action: {action, params}})
         });
-        renderObservation(data.observation, data?.info?.task_id || $("task").value, data?.reward?.value);
-        createLog(`Step: ${action}`, data, toneFromReward(data?.reward?.value));
+        renderObservation(data?.info?.task_id || $("task").value, data.observation, data?.reward?.value);
+        log(`Step: ${action}`, data);
       } catch (e) {
-        createLog("Step failed", { error: e.message }, "bad");
+        log("Step failed", {error: e.message});
       }
     }
 
     async function fetchState() {
       if (!sessionId) {
-        createLog("State blocked", { error: "Reset a session first." }, "warn");
+        log("State blocked", {error: "Reset a session first"});
         return;
       }
       try {
         const data = await callApi(`/state/${sessionId}`);
-        createLog("Session state", data, "warn");
+        log("State", data);
       } catch (e) {
-        createLog("State fetch failed", { error: e.message }, "bad");
+        log("State failed", {error: e.message});
       }
     }
 
     async function fetchTimeline() {
       if (!sessionId) {
-        createLog("Timeline blocked", { error: "Reset a session first." }, "warn");
+        log("Timeline blocked", {error: "Reset a session first"});
         return;
       }
       try {
         const data = await callApi(`/timeline/${sessionId}`);
-        createLog("Timeline", data, "good");
+        log("Timeline", data);
       } catch (e) {
-        createLog("Timeline failed", { error: e.message }, "bad");
+        log("Timeline failed", {error: e.message});
       }
     }
 
     async function fetchRootCause() {
       if (!sessionId) {
-        createLog("Root-cause blocked", { error: "Reset a session first." }, "warn");
+        log("Root-cause blocked", {error: "Reset a session first"});
         return;
       }
       try {
         const data = await callApi(`/root-cause-tree/${sessionId}`);
-        createLog("Root cause tree", data, "good");
+        log("Root-cause tree", data);
       } catch (e) {
-        createLog("Root-cause failed", { error: e.message }, "bad");
+        log("Root-cause failed", {error: e.message});
       }
     }
 
     async function askIncident() {
       if (!sessionId) {
-        createLog("Ask blocked", { error: "Reset a session first." }, "warn");
+        log("Ask blocked", {error: "Reset a session first"});
         return;
       }
       const question = $("question").value.trim();
       if (!question) {
-        createLog("Ask blocked", { error: "Type a question first." }, "warn");
+        log("Ask blocked", {error: "Type a question first"});
         return;
       }
       try {
         const data = await callApi("/ask_incident", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ session_id: sessionId, question })
+          headers: {"Content-Type":"application/json"},
+          body: JSON.stringify({session_id: sessionId, question})
         });
-        createLog("Incident answer", data, "good");
+        log("Incident answer", data);
       } catch (e) {
-        createLog("Ask failed", { error: e.message }, "bad");
+        log("Ask failed", {error: e.message});
       }
     }
 
-    function setActionTemplate(actionName) {
+    function setTemplate(actionName) {
       $("params").value = JSON.stringify(samples[actionName], null, 2);
     }
 
     $("action").addEventListener("change", (e) => {
-      setActionTemplate(e.target.value);
+      setTemplate(e.target.value);
     });
-
-    $("params").addEventListener("keydown", (e) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
-        e.preventDefault();
-        runStep();
-      }
-    });
-
     $("task").addEventListener("change", (e) => {
-      renderTaskDescription(e.target.value);
+      $("task-description").textContent = getSelectedTaskDescription(e.target.value);
     });
-
     $("btn-health").addEventListener("click", refreshHealth);
     $("btn-tasks").addEventListener("click", loadTasks);
     $("btn-state").addEventListener("click", fetchState);
@@ -1052,10 +1897,34 @@
     $("btn-root-cause").addEventListener("click", fetchRootCause);
     $("btn-ask").addEventListener("click", askIncident);
 
-    setActionTemplate("query_logs");
+    const reveals = document.querySelectorAll(".reveal");
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add("visible");
+          io.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.1, rootMargin: "0px 0px -40px 0px" });
+    reveals.forEach((el) => io.observe(el));
+
+    const loopSteps = document.querySelectorAll(".loop-step");
+    loopSteps.forEach((step, i) => {
+      setTimeout(() => {
+        step.style.animationDelay = `${i * 0.15}s`;
+        step.classList.add("visible");
+      }, 400 + i * 150);
+    });
+
+    window.addEventListener("scroll", () => {
+      const nav = document.querySelector("nav");
+      nav.style.borderBottomColor = window.scrollY > 40 ? "rgba(26,20,16,0.14)" : "rgba(26,20,16,0.10)";
+    });
+
+    outputEl.textContent = "IncidentIQ console ready. Reset a task to begin.\n";
+    setTemplate("query_logs");
     refreshHealth();
     loadTasks();
-    updateMeta();
   </script>
 </body>
 </html>
