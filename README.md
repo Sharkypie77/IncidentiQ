@@ -27,7 +27,7 @@ Rewards are deterministic and grading is fully programmatic (no LLM in the grade
 | Difficulty structure | Easy, Medium, Hard, Twist |
 | Built-in UI | `GET /` |
 | API index | `GET /api` |
-| Score bounds | `[0.0, 1.0]` |
+| Score bounds | `(0.0, 1.0)` |
 ## What This Project Is
 | Question | Answer |
 |---|---|
@@ -134,13 +134,13 @@ Terminal rewards are clamped to `[0.0, 0.60]`.
 |---|---|
 | No randomness in grader | Same episode history always yields same score |
 | No LLM in grading loop | Reproducible and audit-friendly evaluation |
-| Final score clamp | `[0.0, 1.0]` |
+| Final score clamp | `(0.0, 1.0)` |
 ## Reward System Validation Snapshot
 | Factor | Current value | Source |
 |---|---|---|
 | Step reward clamp | `[-0.15, +0.10]` | `env/reward.py` |
 | Terminal reward clamp | `[0.0, 0.60]` | `env/reward.py` |
-| Final task score clamp | `[0.0, 1.0]` | task graders + `run_demo.py` + `inference.py` |
+| Final task score clamp | `(0.0, 1.0)` | task graders (strict open interval) |
 | Benchmark success rate | `60% (3/5)` | `benchmark_results.json` |
 | Average benchmark score | `0.4394` | `benchmark_results.json` |
 | Average benchmark steps | `4.4` | `benchmark_results.json` |
@@ -253,7 +253,7 @@ curl https://Zewx77-incidentiq.hf.space/tasks
 ## Recent Fixes
 | Fix | Reason |
 |---|---|
-| Score clamp updated to `[0.0, 1.0]` | Matches OpenEnv score bounds spec |
+| Score clamp updated to `(0.0, 1.0)` | Matches strict validator requirement (no exact 0.0 or 1.0) |
 | Inference output normalization | Ensures parser-safe `[START]/[STEP]/[END]` lines |
 | Removed rescue/forced-close flow | Agent decisions now drive close behavior |
 | Root UI + `/api` split | Better user experience with preserved API index |
