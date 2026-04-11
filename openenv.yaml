@@ -12,6 +12,7 @@ tasks:
     name: Single service CPU saturation
     difficulty: easy
     max_steps: 15
+    grader: "tasks.grader:grade_task1"
     description: >
       The order-service is experiencing CPU saturation due to a missing
       database index. Identify the root cause and correct remediation.
@@ -19,6 +20,7 @@ tasks:
     name: Cascading failure across services
     difficulty: medium
     max_steps: 20
+    grader: "tasks.grader:grade_task2"
     description: >
       Auth-service Redis pool exhaustion cascades to API gateway 503s.
       A red herring (analytics memory leak) is also present.
@@ -26,6 +28,7 @@ tasks:
     name: Silent data corruption
     difficulty: hard
     max_steps: 30
+    grader: "tasks.grader:grade_task3"
     description: >
       A payment race condition causes 3% double-charges with no outage.
       Root cause is a config change 6 days ago, not a recent deployment.
@@ -33,6 +36,7 @@ tasks:
     name: Database connection pool saturation
     difficulty: medium
     max_steps: 20
+    grader: "tasks.grader:grade_task4"
     description: >
       Postgres max_connections was reduced by a config change 2 days ago.
       Connection pool is saturated, cascading to order-service and API gateway.
@@ -40,6 +44,7 @@ tasks:
     name: Analytics pipeline memory leak
     difficulty: medium-hard
     max_steps: 25
+    grader: "tasks.grader:grade_task5"
     description: >
       Analytics-service has a genuine memory leak — unlike other tasks where
       it is a red herring. Tests whether the agent adapts vs blindly ignores.
