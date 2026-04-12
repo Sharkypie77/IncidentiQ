@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import os
-import sys
 import time
 from typing import Any, Dict, List, Optional
 
@@ -176,7 +175,7 @@ def _extract_last_action_error(last_action_result: Optional[str]) -> Optional[st
 
 
 def log_inference(msg: str) -> None:
-    print(f"[inference] {msg}", file=sys.stderr, flush=True)
+    print(f"[inference] {msg}", flush=True)
 
 
 def log_start(task: str, env: str, model: str) -> None:
@@ -187,16 +186,17 @@ def log_step(step: int, action: str, reward: float, done: bool, error: Optional[
     err_val = _one_line(error) if error else "null"
     safe_action = _one_line(action) or "{}"
     print(
-        f"[STEP]  step={step} action={safe_action} reward={reward:.2f} "
+        f"[STEP] step={step} action={safe_action} reward={reward:.2f} "
         f"done={_bool_str(done)} error={err_val}",
         flush=True,
     )
 
 
-def log_end(success: bool, steps: int, rewards: List[float]) -> None:
+def log_end(success: bool, steps: int, score: float, rewards: List[float]) -> None:
     rewards_str = ",".join(f"{r:.2f}" for r in rewards)
     print(
-        f"[END]   success={_bool_str(success)} steps={steps} rewards={rewards_str}",
+        f"[END] success={_bool_str(success)} steps={steps} "
+        f"score={score:.3f} rewards={rewards_str}",
         flush=True,
     )
 
@@ -349,10 +349,6 @@ def main() -> None:
             grader_score = SCORE_EPS
 
             try:
-                # 1. Log start immediately for strict output contract
-                log_start(task=task_id, env="incidentiq", model=MODEL_NAME)
-                start_logged = True
-
                 # 1. Reset
                 reset_resp = http.post("/reset", json={"task_id": task_id})
                 reset_resp.raise_for_status()
@@ -361,7 +357,9 @@ def main() -> None:
                 session_id = reset_data["session_id"]
                 observation = reset_data["observation"]
 
-                # 2. Episode loop
+                # 2. Log start
+                log_start(task=task_id, env="incidentiq", model=MODEL_NAME)
+                start_logged = True
                 log_inference(f"Task started: {task_id}")
 
                 history: List[dict] = []
@@ -395,25 +393,19 @@ def main() -> None:
                             fallback_idx += 1
                             raw_action = json.dumps(action_dict)
                         else:
-                            # Exhausted fallbacks — force close_incident
-                            action_dict = fallback_plan[-1] if fallback_plan else {"action": "query_logs", "params": {"service": "api-gateway", "pattern": "error"}}
+                            # Exhausted fallbacks, use generic
+                            action_dict = {"action": "query_logs", "params": {"service": "api-gateway", "pattern": "error"}}
                             raw_action = json.dumps(action_dict)
                     else:
                         # Successful LLM response — advance fallback index if incident is already being closed
                         if action_dict.get("action", "") == "close_incident":
                             fallback_idx = 99
 
-                    # On the last allowed step, always force close_incident to ensure done=true
-                    fallback_plan = FALLBACK_PLANS.get(task_id, [])
-                    if step_num >= MAX_STEPS and action_dict.get("action") != "close_incident" and fallback_plan:
-                        action_dict = fallback_plan[-1]  # last item is always close_incident
-                        raw_action = json.dumps(action_dict)
-
                     # Check for repeated actions
                     action_key = json.dumps(action_dict, sort_keys=True)
                     if action_key in used_actions:
                         # Skip to next fallback instead of repeating
-                        found_unused = False
+                        fallback_plan = FALLBACK_PLANS.get(task_id, [])
                         while fallback_idx < len(fallback_plan):
                             candidate = fallback_plan[fallback_idx]
                             candidate_key = json.dumps(candidate, sort_keys=True)
@@ -422,13 +414,7 @@ def main() -> None:
                                 action_dict = candidate
                                 raw_action = json.dumps(action_dict)
                                 action_key = candidate_key
-                                found_unused = True
                                 break
-                        # If no unused fallback was found, force close_incident
-                        if not found_unused and fallback_plan:
-                            action_dict = fallback_plan[-1]
-                            raw_action = json.dumps(action_dict)
-                            action_key = json.dumps(action_dict, sort_keys=True)
 
                     used_actions.add(action_key)
                     action_str = json.dumps(action_dict, separators=(",", ":"))
@@ -442,7 +428,7 @@ def main() -> None:
                         step_resp.raise_for_status()
                         step_data = step_resp.json()
                     except Exception as e:
-                        log_step(step_num, action_str, 0.0, False, error=None)
+                        log_step(step_num, action_str, 0.0, False, error=str(e))
                         rewards.append(0.0)
                         steps_taken = step_num
                         continue
@@ -472,9 +458,10 @@ def main() -> None:
 
             finally:
                 if start_logged:
-                    log_end(success, steps_taken, rewards)
+                    log_end(success, steps_taken, grader_score, rewards)
 
         # 5. Print baseline results summary
+        print("", flush=True)
         log_inference("BASELINE RESULTS")
         for tid, sc in task_scores.items():
             log_inference(f"  {tid}: {sc:.4f}")
