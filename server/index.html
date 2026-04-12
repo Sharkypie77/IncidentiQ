@@ -1071,6 +1071,7 @@
       <a href="#api">API</a>
       <a href="#console">Console</a>
       <a href="#quickstart">Quick Start</a>
+      <a href="#validate">Run Validate</a>
       <span id="nav-health" class="nav-health">checking...</span>
       <a href="/docs" class="nav-badge">Swagger UI</a>
     </div>
@@ -1368,65 +1369,68 @@
   <section id="grader">
     <div class="container">
       <div class="section-kicker">Deterministic Grader</div>
-      <h2 class="section-title reveal">No LLM calls. No randomness. Same history, same score.</h2>
+      <h2 class="section-title reveal">Component weight by task.</h2>
       <p class="section-sub reveal">
-        Each task has a programmatic grader. Score components differ by task but always include
-        root-cause correctness, mechanism plausibility, remediation choice, and signal quality.
+        Every task has explicit weighted components. The table below mirrors the grader logic directly.
       </p>
-      <div class="grid-2 reveal">
-        <div>
-          <div class="step-list">
-            <div class="step-item">
-              <div class="step-num">1</div>
-              <div class="step-content">
-                <strong>Action-log driven evaluation</strong>
-                <p>Graders inspect recorded actions and close_incident payload fields deterministically.</p>
-              </div>
-            </div>
-            <div class="step-item">
-              <div class="step-num">2</div>
-              <div class="step-content">
-                <strong>Partial credit before close</strong>
-                <p>Investigation traces can still earn bounded score when close_incident is not called.</p>
-              </div>
-            </div>
-            <div class="step-item">
-              <div class="step-num">3</div>
-              <div class="step-content">
-                <strong>Red-herring resistance</strong>
-                <p>Incorrect blast radius or red-herring targeting reduces terminal quality outcomes.</p>
-              </div>
-            </div>
-            <div class="step-item">
-              <div class="step-num">4</div>
-              <div class="step-content">
-                <strong>Strict output interval</strong>
-                <p>All task grader returns are clamped to <code>(0.0, 1.0)</code>, never exact boundary values.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="code-wrap reveal reveal-delay-2">
-          <div class="code-header">
-            <span class="dot dot-red"></span>
-            <span class="dot dot-yellow"></span>
-            <span class="dot dot-green"></span>
-            Grader philosophy
-          </div>
-          <div class="code-block">
-<span class="comment"># deterministic, no LLM in grading path</span>
-score += root_cause_component
-score += mechanism_component
-score += remediation_component
-score += efficiency_bonus
-
-<span class="comment"># strict-open clamp for validator compatibility</span>
-score = clamp(score, 1e-6, 1.0 - 1e-6)
-          </div>
-          <div class="callout" style="margin: 0;">
-            Grading is reproducible and audit-friendly by design.
-          </div>
-        </div>
+      <div class="reward-table-wrap reveal">
+        <table>
+          <thead>
+            <tr>
+              <th>Task</th>
+              <th>Root Cause</th>
+              <th>Mechanism</th>
+              <th>Remediation</th>
+              <th>Other Components</th>
+              <th>Efficiency</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Task 1: CPU Saturation</td>
+              <td><code>+0.35</code></td>
+              <td><code>+0.10</code></td>
+              <td><code>+0.25</code> rollback</td>
+              <td>Blast radius <code>+0.15</code>, no analytics blame <code>+0.15</code></td>
+              <td><code>+0.10 * efficiency</code></td>
+            </tr>
+            <tr>
+              <td>Task 2: Cascading Failure</td>
+              <td><code>+0.25</code></td>
+              <td><code>+0.20</code></td>
+              <td><code>+0.20</code> restart</td>
+              <td>No order-service deploy blame <code>+0.15</code>, gateway in blast <code>+0.10</code></td>
+              <td><code>+0.10 * efficiency</code></td>
+            </tr>
+            <tr>
+              <td>Task 3: Silent Corruption</td>
+              <td><code>+0.20</code></td>
+              <td><code>+0.20</code></td>
+              <td><code>+0.20</code> config_patch</td>
+              <td>order-service config check <code>+0.15</code>, clean blast <code>+0.15</code></td>
+              <td><code>+0.10 * efficiency</code></td>
+            </tr>
+            <tr>
+              <td>Task 4: DB Connection Limit</td>
+              <td><code>+0.25</code></td>
+              <td><code>+0.20</code></td>
+              <td><code>+0.20</code> config_patch</td>
+              <td>postgres config check <code>+0.10</code>, order-service in blast <code>+0.10</code>, clean blast <code>+0.05</code></td>
+              <td><code>+0.10 * efficiency</code></td>
+            </tr>
+            <tr>
+              <td>Task 5: Memory Leak (Twist)</td>
+              <td><code>+0.25</code></td>
+              <td><code>+0.20</code></td>
+              <td><code>+0.20</code> config_patch</td>
+              <td>analytics config check <code>+0.10</code>, analytics metrics query <code>+0.10</code>, clean blast <code>+0.05</code></td>
+              <td><code>+0.10 * efficiency</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout reveal" style="margin-top: 1rem;">
+        If <code>close_incident</code> is never called, graders give bounded partial credit (capped) from investigation traces.
       </div>
     </div>
   </section>
@@ -1639,6 +1643,51 @@ HF_TOKEN=your_token_here
 python inference.py
           </div>
         </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="validate">
+    <div class="container">
+      <div class="section-kicker">Run Validate</div>
+      <h2 class="section-title reveal">Validation flows (live Space or local server).</h2>
+      <p class="section-sub reveal">
+        Use these commands to reproduce benchmark runs and validator checks quickly.
+      </p>
+      <div class="qs-grid reveal">
+        <div class="qs-card">
+          <div class="qs-card-head">
+            <span class="dot dot-red"></span>
+            <span class="dot dot-yellow"></span>
+            <span class="dot dot-green"></span>
+            Live Space validation
+          </div>
+          <div class="code-block" style="border-radius: 0;">
+$env:HF_TOKEN = "your-nvidia-nim-api-key"
+$env:ENV_URL  = "https://Zewx77-incidentiq.hf.space"
+.venv311\Scripts\python.exe inference.py
+
+$env:ENV_URL = "https://Zewx77-incidentiq.hf.space"
+.venv311\Scripts\python.exe run_demo.py
+          </div>
+        </div>
+        <div class="qs-card">
+          <div class="qs-card-head">
+            <span class="dot dot-red"></span>
+            <span class="dot dot-yellow"></span>
+            <span class="dot dot-green"></span>
+            Local + API checks
+          </div>
+          <div class="code-block" style="border-radius: 0;">
+.venv311\Scripts\uvicorn.exe server.app:app --host 0.0.0.0 --port 7860
+curl http://localhost:7860/health
+curl http://localhost:7860/tasks
+pytest tests/ -v
+          </div>
+        </div>
+      </div>
+      <div class="callout reveal">
+        Validator requirement: every task score must be strictly inside <code>(0, 1)</code>.
       </div>
     </div>
   </section>
