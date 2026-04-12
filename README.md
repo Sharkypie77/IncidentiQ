@@ -111,7 +111,7 @@ Each task presents a different type of outage, ranging from simple to tricky:
 |------------|-------|
 | Investigating a red herring service | −0.08 |
 | Applying a fix to the wrong service | −0.10 |
-| Repeating the same action | −0.01 |
+| Repeating the same action | −1e-2 |
 
 ### At the End (final diagnosis scoring)
 
@@ -124,21 +124,21 @@ Each task presents a different type of outage, ranging from simple to tricky:
 | Not blaming innocent services | +0.05 |
 | Solving it efficiently (fewer steps = more bonus) | up to +0.10 |
 
-**Final task scores are always between 0.01 and 0.99** (strictly between 0 and 1).
+**Final task scores are between 0.0 and 1.0.**
 
 ---
 
 ## 📈 Baseline Performance
 
-These scores were achieved by running an AI agent (Llama 3.1 70B) against the environment:
+These scores were produced by running inference.py with meta/llama-3.1-70b-instruct via NVIDIA NIM API (average: 0.864):
 
 | Task | Difficulty | AI Agent Score |
 |------|-----------|---------------|
-| CPU Saturation | Easy | 0.72 |
-| Cascading Failure | Medium | 0.63 |
-| Silent Corruption | Hard | 0.85 |
-| DB Connection Limit | Medium | 0.70 |
-| Memory Leak (Twist) | Medium-Hard | 0.77 |
+| CPU Saturation | Easy | 0.690 |
+| Cascading Failure | Medium | 0.775 |
+| Silent Corruption | Hard | 0.980 |
+| DB Connection Limit | Medium | 0.975 |
+| Memory Leak (Twist) | Medium-Hard | 0.880 |
 
 ---
 
