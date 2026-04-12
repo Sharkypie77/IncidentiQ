@@ -151,6 +151,22 @@ class AskIncidentResponse(BaseModel):
     disclaimer: Optional[str] = Field(None, description="Additional disclaimer, when applicable")
 
 
+class ValidateCheck(BaseModel):
+    """Single deterministic validator check."""
+
+    name: str = Field(..., description="Check name")
+    ok: bool = Field(..., description="Whether the check passed")
+    details: str = Field(..., description="Human-readable check details")
+
+
+class ValidateResponse(BaseModel):
+    """Response payload for /validate."""
+
+    status: Literal["pass", "fail"] = Field(..., description="Overall validation status")
+    checks: List[ValidateCheck] = Field(..., description="Validation checks and outcomes")
+    task_score_probe: Dict[str, float] = Field(..., description="Per-task probe scores from deterministic grader calls")
+
+
 class McpResponse(BaseModel):
     """MCP JSON-RPC 2.0 response."""
     jsonrpc: str = Field("2.0", description="JSON-RPC version")
@@ -368,6 +384,7 @@ async def root() -> RootResponse:
             "/step",
             "/state",
             "/tasks",
+            "/validate",
             "/timeline/{session_id}",
             "/root-cause-tree/{session_id}",
             "/ask_incident",
@@ -557,6 +574,48 @@ async def ask_incident(body: AskIncidentRequest) -> AskIncidentResponse:
         confidence=top.probability,
         supporting_signals=supporting_signals,
     )
+
+
+@app.post("/validate", response_model=ValidateResponse)
+async def validate() -> ValidateResponse:
+    checks: List[ValidateCheck] = []
+    probe_scores: Dict[str, float] = {}
+
+    tasks = env.get_tasks()
+    checks.append(
+        ValidateCheck(
+            name="tasks_registered",
+            ok=len(tasks) == len(env.tasks) and len(tasks) > 0,
+            details=f"{len(tasks)} tasks available",
+        )
+    )
+
+    checks.append(
+        ValidateCheck(
+            name="ui_file_present",
+            ok=UI_FILE.exists(),
+            details=f"UI file {'found' if UI_FILE.exists() else 'missing'} at {UI_FILE.name}",
+        )
+    )
+
+    open_interval_ok = True
+    for task_id, task in env.tasks.items():
+        probe_episode = task.build_episode(seed=42)
+        probe_score = float(task.grade(probe_episode))
+        probe_scores[task_id] = round(probe_score, 6)
+        if not (0.0 < probe_score < 1.0):
+            open_interval_ok = False
+
+    checks.append(
+        ValidateCheck(
+            name="task_scores_in_open_interval",
+            ok=open_interval_ok,
+            details="All deterministic probe scores are strictly inside (0, 1)",
+        )
+    )
+
+    status: Literal["pass", "fail"] = "pass" if all(check.ok for check in checks) else "fail"
+    return ValidateResponse(status=status, checks=checks, task_score_probe=probe_scores)
 
 
 @app.post("/mcp", description="MCP protocol stub. Core environment interaction uses /reset and /step.")

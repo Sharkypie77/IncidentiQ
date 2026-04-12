@@ -1071,7 +1071,6 @@
       <a href="#api">API</a>
       <a href="#console">Console</a>
       <a href="#quickstart">Quick Start</a>
-      <a href="#validate">Run Validate</a>
       <span id="nav-health" class="nav-health">checking...</span>
       <a href="/docs" class="nav-badge">Swagger UI</a>
     </div>
@@ -1461,6 +1460,7 @@
               <tr><td><span class="method-badge method-get">GET</span></td><td><code>/timeline/{session_id}</code></td><td>Incident timeline view</td></tr>
               <tr><td><span class="method-badge method-get">GET</span></td><td><code>/root-cause-tree/{session_id}</code></td><td>Ranked candidates</td></tr>
               <tr><td><span class="method-badge method-post">POST</span></td><td><code>/ask_incident</code></td><td>UI-only incident Q&A</td></tr>
+              <tr><td><span class="method-badge method-post">POST</span></td><td><code>/validate</code></td><td>Run deterministic self-checks</td></tr>
               <tr><td><span class="method-badge method-get">GET</span></td><td><code>/health</code></td><td>Health check</td></tr>
             </tbody>
           </table>
@@ -1647,51 +1647,6 @@ python inference.py
     </div>
   </section>
 
-  <section id="validate">
-    <div class="container">
-      <div class="section-kicker">Run Validate</div>
-      <h2 class="section-title reveal">Validation flows (live Space or local server).</h2>
-      <p class="section-sub reveal">
-        Use these commands to reproduce benchmark runs and validator checks quickly.
-      </p>
-      <div class="qs-grid reveal">
-        <div class="qs-card">
-          <div class="qs-card-head">
-            <span class="dot dot-red"></span>
-            <span class="dot dot-yellow"></span>
-            <span class="dot dot-green"></span>
-            Live Space validation
-          </div>
-          <div class="code-block" style="border-radius: 0;">
-$env:HF_TOKEN = "your-nvidia-nim-api-key"
-$env:ENV_URL  = "https://Zewx77-incidentiq.hf.space"
-.venv311\Scripts\python.exe inference.py
-
-$env:ENV_URL = "https://Zewx77-incidentiq.hf.space"
-.venv311\Scripts\python.exe run_demo.py
-          </div>
-        </div>
-        <div class="qs-card">
-          <div class="qs-card-head">
-            <span class="dot dot-red"></span>
-            <span class="dot dot-yellow"></span>
-            <span class="dot dot-green"></span>
-            Local + API checks
-          </div>
-          <div class="code-block" style="border-radius: 0;">
-.venv311\Scripts\uvicorn.exe server.app:app --host 0.0.0.0 --port 7860
-curl http://localhost:7860/health
-curl http://localhost:7860/tasks
-pytest tests/ -v
-          </div>
-        </div>
-      </div>
-      <div class="callout reveal">
-        Validator requirement: every task score must be strictly inside <code>(0, 1)</code>.
-      </div>
-    </div>
-  </section>
-
   <footer>
     <div class="container">
       <div class="footer-inner">
@@ -1703,8 +1658,8 @@ pytest tests/ -v
         </div>
         <div class="footer-links">
           <a href="/docs">Swagger UI</a>
-          <a href="/api">API index</a>
           <a href="/health">Health</a>
+          <a href="/validate" onclick="event.preventDefault(); fetch('/validate',{method:'POST'}).then(r=>r.json()).then(d=>alert(JSON.stringify(d,null,2)))">Run Validate</a>
         </div>
       </div>
     </div>
